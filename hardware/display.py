@@ -1,334 +1,419 @@
-# hardware/display.py
-# Combined and cleaned-up drivers for the ST7789 display and CST816D touch controller.
-
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
 import time
 import spidev
+import logging
 import numpy as np
 from gpiozero import DigitalOutputDevice, PWMOutputDevice, Button
-import smbus
+import smbus2 as smbus
 import RPi.GPIO
 
-# --- Wrapper Class ---
-# This class simplifies interaction by combining the display and touch functionalities.
-class Screen:
-    """A wrapper class for the ST7789 display and CST816D touch controller."""
-    def __init__(self, orientation=90):
-        """
-        Initializes the display and touch components.
-        :param orientation: The rotation of the display. 0, 90, 180, 270 degrees.
-                          90 degrees is landscape with USB ports on the right.
-        """
-        self.display = ST7789()
-        self.touch = CST816D()
-        self.set_orientation(orientation)
+# ST7789T3 (display) config -- waveshare default pin assignments
+RST_PIN  = 27
+DC_PIN   = 25
+BL_PIN   = 18
 
-    def set_orientation(self, degrees):
-        """
-        Sets the display orientation.
-        Note: This is a hardware command. Touch coordinates may need to be
-              transformed in the application logic based on the orientation.
-        """
-        # MADCTL (Memory Data Access Control) register values for orientation
-        # These values may need tweaking depending on the specific display model.
-        # 0x00 = Portrait
-        # 0x60 = Portrait (flipped)
-        # 0xA0 = Landscape (rotated 90 deg clockwise)
-        # 0xC0 = Landscape (flipped)
-        if degrees == 0:
-            madctl_val = 0x00
-        elif degrees == 90:
-            madctl_val = 0x60 # Using 0x60 based on common ST7789 setups for landscape
-        elif degrees == 180:
-            madctl_val = 0xC0
-        elif degrees == 270:
-            madctl_val = 0xA0
-        else:
-            madctl_val = 0x00 # Default to portrait
+# CST816D (touch) config -- waveshare default pin assignments
+TP_INT   = 4
+TP_RST   = 17
 
-        self.display.command(0x36)
-        self.display.data(madctl_val)
-
-    def show_image(self, image):
-        """Displays a PIL image on the screen."""
-        self.display.show_image(image)
-
-    def get_touch(self):
-        """Reads and returns touch data."""
-        self.touch.read_touch_data()
-        return self.touch.get_touch_xy()
-
-    def set_backlight(self, level):
-        """
-        Sets the backlight brightness.
-        :param level: An integer from 0 (off) to 100 (full brightness).
-        """
-        self.display.bl_DutyCycle(level)
-
-    def clear(self):
-        """Clears the display to black."""
-        self.display.clear()
-
-
-# --- Display Driver (ST7789) ---
-# Your original st7789.py code, now as a class within this file.
-class ST7789:
+class st7789():
     def __init__(self):
-        # Pin Definitions
-        RST_PIN = 27
-        DC_PIN = 25
-        BL_PIN = 18
-        
-        # SPI Configuration
-        SPI_Freq = 40000000
-        BL_Freq = 1000
-
-        self.width = 240
+        self.np=np
+        self.width  = 240
         self.height = 320
-        
-        self.GPIO_RST_PIN = DigitalOutputDevice(RST_PIN, active_high=True, initial_value=True)
-        self.GPIO_DC_PIN = DigitalOutputDevice(DC_PIN, active_high=True, initial_value=True)
-        self.GPIO_BL_PIN = PWMOutputDevice(BL_PIN, frequency=BL_Freq)
+
+        self.GPIO_RST_PIN = DigitalOutputDevice(RST_PIN,active_high = True,initial_value =True)
+        self.GPIO_DC_PIN  = DigitalOutputDevice(DC_PIN,active_high = True,initial_value =True)
+        self.GPIO_BL_PIN  = PWMOutputDevice(BL_PIN,frequency = 1000) # PWM frequency （backlight）
         self.bl_DutyCycle(100)
-        
+
         # Initialize SPI
-        self.SPI = spidev.SpiDev(0, 0)
-        self.SPI.max_speed_hz = SPI_Freq
+        self.SPI = spidev.SpiDev(0,0)
+        self.SPI.max_speed_hz = 40000000
         self.SPI.mode = 0b00
-        
+
         self.lcd_init()
+        
+    # Set PWM duty cycle
+    def bl_DutyCycle(self, duty):                   
+        self.GPIO_BL_PIN.value = duty / 100
 
-    def bl_DutyCycle(self, duty):
-        self.GPIO_BL_PIN.value = duty / 100.0
-
-    def digital_write(self, pin, value):
+    def digital_write(self, Pin, value):
         if value:
-            pin.on()
+            Pin.on()
         else:
-            pin.off()
-            
+            Pin.off()
+
     def spi_writebyte(self, data):
-        if self.SPI is not None:
+        if self.SPI!=None :
             self.SPI.writebytes(data)
-    
+
     def command(self, cmd):
         self.digital_write(self.GPIO_DC_PIN, False)
         self.spi_writebyte([cmd])
-        
+
     def data(self, val):
         self.digital_write(self.GPIO_DC_PIN, True)
         self.spi_writebyte([val])
-        
+
     def reset(self):
-        self.digital_write(self.GPIO_RST_PIN, True)
+        # Reset the display
+        self.digital_write(self.GPIO_RST_PIN,True)
         time.sleep(0.01)
-        self.digital_write(self.GPIO_RST_PIN, False)
+        self.digital_write(self.GPIO_RST_PIN,False)
         time.sleep(0.01)
-        self.digital_write(self.GPIO_RST_PIN, True)
+        self.digital_write(self.GPIO_RST_PIN,True)
         time.sleep(0.01)
-    
+
+    def dre_rectangle(self, Xstart, Ystart, Xend, Yend, color):
+        color_high = (color >> 8) & 0xFF
+        color_low = color & 0xFF
+
+        self.set_windows( Xstart, Ystart, Xend, Yend)
+        for a in range (Xstart, Xend+1):
+            for b in range (Ystart , Yend + 1):
+                self.data(color_high)
+                self.data(color_low)
+
     def lcd_init(self):
+
+        # Hardware reset of the display controller.
         self.reset()
+
+        # Command: SLPOUT (0x11) - Sleep Out
+        # This command turns off the sleep mode of the LCD module, enabling the
+        # DC/DC converter, internal oscillator, and panel scanning.
         self.command(0x11)
+        # A delay of 120ms is required after SLPOUT to allow supply voltages
+        # and clock circuits to stabilize before sending new commands.
         time.sleep(0.12)
 
-        self.command(0x36) # Memory Data Access Control
-        self.data(0x00)    # Default value
+        # Command: MADCTL (0x36) - Memory Data Access Control
+        # Defines the read/write scanning direction of the frame memory.
+        self.command(0x36)
+        # Data: 0x00
+        # Sets the default memory access and display order:
+        # - Page Address Order: Top to Bottom
+        # - Column Address Order: Left to Right
+        # - Page/Column Order: Normal Mode
+        # - Line Address Order: LCD Refresh Top to Bottom
+        # - RGB/BGR Order: RGB
+        # - Display Data Latch Order: LCD Refresh Left to Right
+        self.data(0x00)
 
+        # Command: COLMOD (0x3A) - Interface Pixel Format
+        # Defines the format of RGB data transferred from the MCU.
         self.command(0x3A)
+        # Data: 0x05
+        # Sets the pixel format to 16-bit/pixel (RGB 5-6-5), which corresponds
+        # to 65K colors.
         self.data(0x05)
 
-        self.command(0xB2) # Porch Setting
-        self.data(0x0C)
-        self.data(0x0C)
-        self.data(0x00)
-        self.data(0x33)
-        self.data(0x33)
+        # Command: CSCON (0xF0) - Command Set Control (Manufacturer Specific)
+        # This command is used to enable or disable access to extended command sets.
+        self.command(0xF0)
+        # Data: 0xC3
+        # Enables Command Set 2.
+        self.data(0xC3)
 
-        self.command(0xB7) # Gate Control
-        self.data(0x35)
+        # Command: CSCON (0xF0) - Command Set Control (Manufacturer Specific)
+        # This command is used to enable or disable access to extended command sets.
+        self.command(0xF0)
+        # Data: 0x96
+        # Enables Command Set 3.
+        self.data(0x96)
 
-        self.command(0xBB) # VCOM Setting
-        self.data(0x19)
-
-        self.command(0xC0) # LCM Control
-        self.data(0x2C)
-
-        self.command(0xC2) # VDV and VRH Command Enable
+        # Command: INVCTR (0xB4) - Inversion Control
+        # Controls the display's pixel inversion setting to prevent image sticking.
+        self.command(0xB4)
+        # Data: 0x01
+        # Sets the inversion to "dot inversion" in normal mode.
         self.data(0x01)
-        self.data(0xFF)
 
-        self.command(0xC3) # VRH Set
-        self.data(0x12)
+        # Command: GCTRL (0xB7) - Gate Control
+        # Sets the voltage levels for the gate drivers (VGH and VGL).
+        self.command(0xB7)
+        # Data: 0xC6
+        # Configures VGH to 13.65V and VGL to -11.38V.
+        self.data(0xC6)
 
-        self.command(0xC4) # VDV Set
-        self.data(0x20)
+        # Command: LCMCTRL (0xC0) - LCM Control
+        # Controls various XOR settings for memory and display behavior.
+        self.command(0xC0)
+        # Data: 0x80
+        # Enables the XOR MY setting, which may reverse the Page Address Order.
+        self.data(0x80)
+        # Data: 0x45
+        # This second parameter is a vendor-specific setting for the LCM.
+        self.data(0x45)
 
-        self.command(0xC6) # Frame Rate Control in Normal Mode
-        self.data(0x0F)
+        # Command: IDSET (0xC1) - ID Code Setting
+        # Sets the ID1, ID2, and ID3 values of the display module.
+        self.command(0xC1)
+        # Data: 0x13
+        # Sets the ID1 parameter to 0x13.
+        self.data(0x13)
 
-        self.command(0xD0) # Power Control 1
-        self.data(0xA4)
-        self.data(0xA1)
+        # Command: VDVVRHEN (0xC2) - VDV and VRH Command Enable
+        # Enables setting VDV and VRH register values via commands.
+        self.command(0xC2)
+        # Data: 0xA7
+        # This is a vendor-specific parameter to configure VDV and VRH.
+        self.data(0xA7)
 
-        self.command(0xE0) # Positive Voltage Gamma Control
+        # Command: VCMOFSET (0xC5) - VCOMS Offset Set
+        # Adjusts the VCOMS offset voltage.
+        self.command(0xC5)
+        # Data: 0x0A
+        # Sets the VCOMS OFFSET to -0.05V.
+        self.data(0x0A)
+
+        # Command: PWCTRL2 (0xE8) - Power Control 2
+        # Controls timing and clock settings for the power circuits.
+        self.command(0xE8)
+        # These 8 bytes are extended parameters for fine-tuning power control.
+        self.data(0x40)
+        self.data(0x8A)
+        self.data(0x00)
+        self.data(0x00)
+        self.data(0x29)
+        self.data(0x19)
+        self.data(0xA5)
+        self.data(0x33)
+
+        # Command: PVGAMCTRL (0xE0) - Positive Voltage Gamma Control
+        # Sets the positive voltage gamma correction values for grayscale levels.
+        self.command(0xE0)
+        # The following 14 bytes configure the positive gamma curve.
         self.data(0xD0)
-        self.data(0x04)
-        self.data(0x0D)
-        self.data(0x11)
+        self.data(0x08)
+        self.data(0x0F)
+        self.data(0x06)
+        self.data(0x06)
+        self.data(0x33)
+        self.data(0x30)
+        self.data(0x33)
+        self.data(0x47)
+        self.data(0x17)
+        self.data(0x13)
         self.data(0x13)
         self.data(0x2B)
-        self.data(0x3F)
-        self.data(0x54)
-        self.data(0x4C)
-        self.data(0x18)
-        self.data(0x0D)
-        self.data(0x0B)
-        self.data(0x1F)
-        self.data(0x23)
+        self.data(0x31)
 
-        self.command(0xE1) # Negative Voltage Gamma Control
+        # Command: NVGAMCTRL (0xE1) - Negative Voltage Gamma Control
+        # Sets the negative voltage gamma correction values.
+        self.command(0xE1)
+        # The following 14 bytes configure the negative gamma curve.
         self.data(0xD0)
-        self.data(0x04)
-        self.data(0x0C)
+        self.data(0x0A)
         self.data(0x11)
-        self.data(0x13)
-        self.data(0x2C)
-        self.data(0x3F)
-        self.data(0x44)
-        self.data(0x51)
+        self.data(0x0B)
+        self.data(0x09)
+        self.data(0x07)
         self.data(0x2F)
-        self.data(0x1F)
-        self.data(0x1F)
-        self.data(0x20)
-        self.data(0x23)
+        self.data(0x33)
+        self.data(0x47)
+        self.data(0x38)
+        self.data(0x15)
+        self.data(0x16)
+        self.data(0x2C)
+        self.data(0x32)
 
-        self.command(0x21) # Display Inversion On
-        self.command(0x11) # Sleep Out
-        time.sleep(0.12)
-        self.command(0x29) # Display On
+        # Command: CSCON (0xF0) - Command Set Control (Manufacturer Specific)
+        # This command is used to enable or disable access to extended command sets.
+        self.command(0xF0)
+        # Data: 0x3C
+        # Disables Command Set 3.
+        self.data(0x3C)
 
-    def set_windows(self, x_start, y_start, x_end, y_end):
-        self.command(0x2A) # Column Address Set
-        self.data(x_start >> 8)
-        self.data(x_start & 0xFF)
-        self.data(x_end >> 8)
-        self.data(x_end & 0xFF)
+        # Command: CSCON (0xF0) - Command Set Control (Manufacturer Specific)
+        # This command is used to enable or disable access to extended command sets.
+        self.command(0xF0)
+        # Data: 0x69
+        # Disables Command Set 2.
+        self.data(0x69)
 
-        self.command(0x2B) # Row Address Set
-        self.data(y_start >> 8)
-        self.data(y_start & 0xFF)
-        self.data(y_end >> 8)
-        self.data(y_end & 0xFF)
-        
-        self.command(0x2C) # Memory Write
+        # Command: INVON (0x21) - Display Inversion On
+        # Enables the display inversion mode.
+        self.command(0x21)
 
-    def show_image(self, image):
-        # The physical display resolution
-        disp_width = 240
-        disp_height = 240 # For the 1.28-inch round display
+        # Command: SLPOUT (0x11) - Sleep Out
+        # This is a redundant Sleep Out command, likely to ensure the display
+        # remains active before the final Display On command.
+        self.command(0x11)
+        # A 100ms delay for stabilization.
+        time.sleep(0.1)
 
-        # Set the drawing window to the full screen
-        self.set_windows(0, 0, disp_width - 1, disp_height - 1)
+        # Command: DISPON (0x29) - Display On
+        # Turns the display on, enabling output from the frame memory.
+        self.command(0x29)
 
-        # Convert PIL image to 565 format
-        pixel_bytes = self.image_to_data(image)
-        
-        self.digital_write(self.GPIO_DC_PIN, True)
-        # Write data in chunks
-        for i in range(0, len(pixel_bytes), 4096):
-            self.spi_writebyte(pixel_bytes[i:i+4096])
+    def set_windows(self, Xstart, Ystart, Xend, Yend, horizontal = 0):
+        # set the X coordinates
+        self.command(0x2A)
+        self.data(Xstart>>8)       #Set the horizontal starting point to the high octet
+        self.data(Xstart & 0xff)   #Set the horizontal starting point to the low octet
+        self.data(Xend>>8)         #Set the horizontal end to the high octet
+        self.data((Xend) & 0xff)   #Set the horizontal end to the low octet
+        # set the Y coordinates
+        self.command(0x2B)
+        self.data(Ystart>>8)
+        self.data((Ystart & 0xff))
+        self.data(Yend>>8)
+        self.data((Yend) & 0xff)
+        self.command(0x2C)
 
-    def image_to_data(self, image):
-        """Converts a PIL Image to a list of bytes in RGB565 format."""
-        # Ensure image is in RGB mode
-        image_rgb = image.convert("RGB")
-        # Convert to numpy array
-        img_array = np.array(image_rgb, dtype=np.uint8)
-        
-        # Apply the RGB888 to RGB565 conversion
-        r = (img_array[:, :, 0] & 0xF8).astype(np.uint16)
-        g = (img_array[:, :, 1] & 0xFC).astype(np.uint16)
-        b = (img_array[:, :, 2] & 0xF8).astype(np.uint16)
-        
-        rgb565 = (r << 8) | (g << 3) | (b >> 3)
-        
-        # Return as a list of bytes (big-endian)
-        return rgb565.tobytes('C')
+    def show_image_windows(self, Xstart, Ystart, Xend, Yend, Image):
+        # Set buffer to value of PIL image
+        # Write display buffer to physical display
+        imwidth, imheight = Image.size
+        if imwidth != self.width or imheight != self.height:
+            raise ValueError('Image must be same dimensions as display \
+                ({0}x{1}).' .format(self.width, self.height))
+        img = self.np.asarray(Image)
+        pix = self.np.zeros((imheight,imwidth , 2), dtype = self.np.uint8)
+        # RGB888 >> RGB565
+        pix[...,[0]] = self.np.add(self.np.bitwise_and(img[...,[0]],0xF8),self.np.right_shift(img[...,[1]],5))
+        pix[...,[1]] = self.np.add(self.np.bitwise_and(self.np.left_shift(img[...,[1]],3),0xE0), self.np.right_shift(img[...,[2]],3))
+        pix = pix.flatten().tolist()
+
+        if Xstart > Xend:
+            data = Xstart
+            Xstart = Xend
+            Xend = data
+
+        if Ystart > Yend:
+            data = Ystart
+            Ystart = Yend
+            Yend = data
+
+        if Xend < self.width - 1:
+            Xend = Xend + 1
+
+        if Yend < self.width - 1:
+            Yend = Yend + 1
+
+        self.set_windows( Xstart, Ystart, Xend, Yend)
+        self.digital_write(self.GPIO_DC_PIN,True)
+
+        for i in range (Ystart,Yend):
+            Addr = ((Xstart) + (i * 240)) * 2
+            self.spi_writebyte(pix[Addr : Addr+((Xend-Xstart+1)*2)])
+
+    def show_image(self, Image):
+        # Set buffer to value of PIL image
+        # Write display buffer to physical display
+        imwidth, imheight = Image.size
+        # Landscape
+        if imwidth == self.height and imheight ==  self.width:
+            img = self.np.asarray(Image)
+            pix = self.np.zeros((self.width, self.height,2), dtype = self.np.uint8)
+            # RGB888 >> RGB565
+            pix[...,[0]] = self.np.add(self.np.bitwise_and(img[...,[0]],0xF8),self.np.right_shift(img[...,[1]],5))
+            pix[...,[1]] = self.np.add(self.np.bitwise_and(self.np.left_shift(img[...,[1]],3),0xE0), self.np.right_shift(img[...,[2]],3))
+            pix = pix.flatten().tolist()
+            # Perform rotation and RGB>BGR conversion
+            self.command(0x36)
+            self.data(0x38)
+            # MADCTR data table for value 0x38
+            # MY:  0 Top to bottom
+            # MX:  0 left to right
+            # MV:  1 x-y exchange (vertical addressing mode, flips and inverts)
+            # ML:  1 scrolling/linebuffer?
+            # RGB: 1 BGR mode
+            # n/a: 0
+            # n/a: 0
+            # n/a: 0
+            self.set_windows(0, 0, self.height,self.width, 1)
+            self.digital_write(self.GPIO_DC_PIN,True)
+            for i in range(0,len(pix),4096):
+                self.spi_writebyte(pix[i:i+4096])
+        # Portrait
+        else:
+            img = self.np.asarray(Image)
+            pix = self.np.zeros((imheight,imwidth , 2), dtype = self.np.uint8)
+
+            pix[...,[0]] = self.np.add(self.np.bitwise_and(img[...,[0]],0xF8),self.np.right_shift(img[...,[1]],5))
+            pix[...,[1]] = self.np.add(self.np.bitwise_and(self.np.left_shift(img[...,[1]],3),0xE0), self.np.right_shift(img[...,[2]],3))
+            pix = pix.flatten().tolist()
+            # Perform rotation and RGB>BGR conversion
+            self.command(0x36)
+            self.data(0x48)
+
+            self.set_windows(0, 0, self.width, self.height, 0)
+            self.digital_write(self.GPIO_DC_PIN,True)
+
+        for i in range(0, len(pix), 4096):
+            self.spi_writebyte(pix[i: i+4096])
 
     def clear(self):
-        """Clear contents of image buffer to black."""
-        # Create a black buffer
-        black_buffer = [0x00] * (self.width * self.height * 2)
-        self.set_windows(0, 0, self.width - 1, self.height - 1)
-        self.digital_write(self.GPIO_DC_PIN, True)
-        # Write data in chunks
-        for i in range(0, len(black_buffer), 4096):
-            self.spi_writebyte(black_buffer[i:i+4096])
+        # Clear contents of image buffer
+        _buffer = [0xff] * (self.width*self.height*2)
+        self.set_windows(0, 0, self.width, self.height)
+        self.digital_write(self.GPIO_DC_PIN,True)
+        for i in range(0, len(_buffer), 4096):
+            self.spi_writebyte(_buffer[i: i+4096])
 
-
-# --- Touch Driver (CST816D) ---
-# Your original cst816d.py code, now as a class within this file.
-class CST816D:
+class cst816d():
     def __init__(self):
-        # I2C and GPIO Pin Definitions
-        CST816D_ADDRESS = 0x15
-        TP_INT_PIN = 4
-        TP_RST_PIN = 17
-        
-        self.i2c = smbus.SMBus(1)
-        
-        # Using RPi.GPIO for reset pin to match original logic
         self.GPIO = RPi.GPIO
         self.GPIO.setmode(self.GPIO.BCM)
         self.GPIO.setwarnings(False)
-        self.GPIO.setup(TP_RST_PIN, self.GPIO.OUT)
+        # Initialize I2C
+        self.I2C = smbus.SMBus(1)
+        self.GPIO.setup(TP_RST, self.GPIO.OUT)
+        self.GPIO_TP_INT = Button(TP_INT)
         
-        # Using gpiozero for interrupt pin
-        self.int_pin = Button(TP_INT_PIN, pull_up=True)
-        
-        self.coordinates = [{"x": 0, "y": 0}]
+        self.coordinates = [{"x": 0, "y": 0} for _ in range(2)]
         self.point_count = 0
-        
-        self.reset_touch()
+        self.touch_rst()
 
-    def reset_touch(self):
-        self.GPIO.output(17, 0)
-        time.sleep(0.01)
-        self.GPIO.output(17, 1)
-        time.sleep(0.05)
-        
+    def Int_Callback(self):
+        self.read_touch_data()
+
+    # Reset
+    def touch_rst(self):
+        self.GPIO.output(TP_RST, 0)
+        time.sleep(1 / 1000.0)
+        self.GPIO.output(TP_RST, 1)
+        time.sleep(50 / 1000.0)
+
+
+    def write_cmd(self, cmd):
+        self.I2C.write_byte(0x15, data)
+
     def read_bytes(self, reg_addr, length):
-        try:
-            return self.i2c.read_i2c_block_data(0x15, reg_addr, length)
-        except IOError as e:
-            print(f"I2C Error: {e}")
-            return None
-    
+        # send register address and read multiple bytes
+        data = self.I2C.read_i2c_block_data(0x15, reg_addr, length)
+        return data
+
     def read_touch_data(self):
-        # Only read data if an interrupt (touch) has occurred
-        if self.int_pin.is_pressed:
-            buf = self.read_bytes(0x02, 1) # Read number of touch points
-            
-            if buf and buf[0] > 0:
-                self.point_count = buf[0]
-                # Read X and Y coordinates for the first touch point
-                touch_data = self.read_bytes(0x03, 4)
-                if touch_data:
-                    x = ((touch_data[0] & 0x0F) << 8) | touch_data[1]
-                    y = ((touch_data[2] & 0x0F) << 8) | touch_data[3]
-                    # The display is 240x240, cap the values
-                    self.coordinates[0]["x"] = min(x, 239)
-                    self.coordinates[0]["y"] = min(y, 239)
-            else:
-                self.point_count = 0
-        else:
-            self.point_count = 0
+        TOUCH_NUM_REG = 0x02
+        TOUCH_XY_REG = 0x03
+
+        buf = self.read_bytes(TOUCH_NUM_REG, 1)
+
+        if buf and buf[0] != 0:
+            self.point_count = buf[0]
+            buf = self.read_bytes(TOUCH_XY_REG, 6 * self.point_count)
+            for i in range(2):
+                self.coordinates[i]["x"] = 0
+                self.coordinates[i]["y"] = 0
+
+            if buf:
+                for i in range(self.point_count):
+                    self.coordinates[i]["x"] = ((buf[(i * 6) + 0] & 0x0f) << 8) + buf[(i * 6) + 1]
+                    self.coordinates[i]["y"] = ((buf[(i * 6) + 2] & 0x0f) << 8) + buf[(i * 6) + 3]
 
     def get_touch_xy(self):
         point = self.point_count
-        # Reset point count after reading
+        # reset count to zero
         self.point_count = 0
-        if point > 0:
+
+        if point != 0:
+            # return touch status and coordinates
             return point, self.coordinates
         else:
-            return 0, []
+            # return and empty coordinates list
+            return 0 , []

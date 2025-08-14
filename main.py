@@ -7,13 +7,11 @@ import subprocess
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 
-# --- Local Project Imports ---
-# Import our new Screen wrapper class
-from hardware.display import Screen
+# --- Local Driver Imports ---
+from hardware.display import st7789, cst816d
 
 # --- Configuration ---
 # Screen dimensions for LANDSCAPE orientation
-# NOTE: The physical display is 240x320, but we are using it in a 320x240 landscape mode.
 LCD_WIDTH = 320
 LCD_HEIGHT = 240
 
@@ -22,7 +20,6 @@ INACTIVITY_TIMEOUT = 60
 
 
 # --- System Info Functions ---
-# (These are unchanged from your original script)
 
 def get_cpu_temperature():
     """Gets the CPU temperature."""
@@ -82,13 +79,19 @@ def get_ip_address():
 
 class ServerMonitor:
     def __init__(self):
-        # Initialize our combined screen and touch object
-        # We pass 90 for a 90-degree clockwise landscape rotation.
-        self.screen = Screen(orientation=90)
-        self.screen.clear()
+        # Initialize display and touch drivers
+        self.disp = st7789()
+        self.touch = cst816d()
+        self.disp.clear()
+
+        # Set the display to landscape mode (90-degree clockwise rotation)
+        # This is the hardware command for orientation
+        self.disp.command(0x36) # MADCTL
+        # Correct value for 90-degree rotation without mirroring
+        self.disp.data(0x00)    # MY, MV, BGR=0 -> Landscape, no mirroring
 
         # Application state
-        self.current_screen_index = 0
+        self.current_screen = 0
         self.screens = [self.draw_screen_1, self.draw_screen_2]
         self.is_sleeping = False
         self.last_activity_time = time.time()
@@ -106,8 +109,11 @@ class ServerMonitor:
             
     def draw_base_ui(self, draw):
         """Draws persistent UI elements for landscape mode."""
+        # Left Arrow (for previous screen)
         draw.polygon([(10, LCD_HEIGHT // 2), (30, LCD_HEIGHT // 2 - 10), (30, LCD_HEIGHT // 2 + 10)], fill="white")
+        # Right Arrow (for next screen)
         draw.polygon([(LCD_WIDTH - 10, LCD_HEIGHT // 2), (LCD_WIDTH - 30, LCD_HEIGHT // 2 - 10), (LCD_WIDTH - 30, LCD_HEIGHT // 2 + 10)], fill="white")
+
 
     def draw_screen_1(self):
         """Draws the main overview screen (CPU, RAM)."""
@@ -115,18 +121,27 @@ class ServerMonitor:
         draw = ImageDraw.Draw(image)
         self.draw_base_ui(draw)
 
+        # Title
         draw.text((10, 10), "System Overview", font=self.font_large, fill="CYAN")
+        
+        # CPU Info
         draw.text((40, 50), "CPU Temp:", font=self.font_medium, fill="WHITE")
         draw.text((180, 50), get_cpu_temperature(), font=self.font_medium, fill="YELLOW")
+        
         draw.text((40, 80), "CPU Usage:", font=self.font_medium, fill="WHITE")
         draw.text((180, 80), get_cpu_usage(), font=self.font_medium, fill="YELLOW")
+
+        # RAM Info
         ram_percent, ram_mb = get_ram_info()
         draw.text((40, 110), "RAM Usage:", font=self.font_medium, fill="WHITE")
         draw.text((180, 110), ram_percent, font=self.font_medium, fill="YELLOW")
         draw.text((180, 130), f"({ram_mb})", font=self.font_small, fill="GRAY")
+        
+        # IP and Time
         now = datetime.now().strftime("%H:%M:%S")
         draw.text((10, 210), f"IP: {get_ip_address()}", font=self.font_medium, fill="LIGHTGREEN")
         draw.text((LCD_WIDTH - 90, 210), now, font=self.font_medium, fill="WHITE")
+
         return image
 
     def draw_screen_2(self):
@@ -134,25 +149,35 @@ class ServerMonitor:
         image = Image.new("RGB", (LCD_WIDTH, LCD_HEIGHT), "BLACK")
         draw = ImageDraw.Draw(image)
         self.draw_base_ui(draw)
-        
+
+        # Title
         draw.text((10, 10), "Storage & Network", font=self.font_large, fill="CYAN")
+
+        # Disk Info
         disk_percent, disk_gb = get_disk_space()
         draw.text((40, 60), "Disk Usage:", font=self.font_medium, fill="WHITE")
         draw.text((180, 60), disk_percent, font=self.font_medium, fill="YELLOW")
         draw.text((180, 80), f"({disk_gb})", font=self.font_small, fill="GRAY")
+
+        # IP Address
         draw.text((40, 120), "IP Address:", font=self.font_medium, fill="WHITE")
         draw.text((40, 150), get_ip_address(), font=self.font_medium, fill="LIGHTGREEN")
+        
+        # Time
         now = datetime.now().strftime("%H:%M:%S")
         draw.text((LCD_WIDTH - 90, 210), now, font=self.font_medium, fill="WHITE")
+
         return image
 
     def handle_input(self):
         """Handles touch input for navigation and wake-up."""
-        point_count, coordinates = self.screen.get_touch()
+        self.touch.read_touch_data()
+        point_count, coordinates = self.touch.get_touch_xy()
 
         if point_count > 0:
             if self.is_sleeping:
                 self.wake_up()
+                time.sleep(0.1)
                 return
 
             self.last_activity_time = time.time()
@@ -160,45 +185,42 @@ class ServerMonitor:
             touch_x = coordinates[0]['x']
             touch_y = coordinates[0]['y']
             
-            # --- Touch Coordinate Transformation ---
-            # The physical touch controller gives coordinates for a portrait display (240x320).
-            # We need to map these to our landscape UI (320x240).
-            # For a 90-degree clockwise rotation:
-            # - The UI's X-axis corresponds to the touch's Y-axis.
-            # - The UI's Y-axis corresponds to the touch's X-axis, but inverted.
+            # Correct transformation for a 90-degree clockwise hardware rotation (MADCTL = 0xA0)
             ui_x = touch_y
-            ui_y = 240 - touch_x
-            
-            # Define touch zones for the left and right thirds of the landscape screen
+            ui_y = touch_x
+
+            # Greatly expanded touch zones to cover left and right thirds of the screen
             LEFT_ZONE_X_END = LCD_WIDTH // 3
             RIGHT_ZONE_X_START = LCD_WIDTH - (LCD_WIDTH // 3)
 
             if ui_x < LEFT_ZONE_X_END:
-                self.current_screen_index = (self.current_screen_index - 1) % len(self.screens)
+                self.current_screen = (self.current_screen - 1) % len(self.screens)
                 print("Touched Left - Previous Screen")
-                time.sleep(0.2) # Debounce touch
+                time.sleep(0.1)
 
             elif ui_x > RIGHT_ZONE_X_START:
-                self.current_screen_index = (self.current_screen_index + 1) % len(self.screens)
+                self.current_screen = (self.current_screen + 1) % len(self.screens)
                 print("Touched Right - Next Screen")
-                time.sleep(0.2) # Debounce touch
+                time.sleep(0.1)
 
     def sleep_display(self):
+        """Turn off the backlight to save power."""
         if not self.is_sleeping:
             print("Going to sleep...")
             self.is_sleeping = True
-            self.screen.set_backlight(0)
+            self.disp.bl_DutyCycle(0)
 
     def wake_up(self):
+        """Turn the backlight on."""
         if self.is_sleeping:
             print("Waking up...")
             self.is_sleeping = False
-            self.screen.set_backlight(100)
+            self.disp.bl_DutyCycle(100)
             self.last_activity_time = time.time()
 
     def run(self):
         """Main application loop."""
-        print("Starting Pi Monitor...")
+        print("Starting Server Monitor...")
         try:
             while True:
                 self.handle_input()
@@ -211,18 +233,21 @@ class ServerMonitor:
                     self.sleep_display()
                     continue
 
-                draw_function = self.screens[self.current_screen_index]
+                draw_function = self.screens[self.current_screen]
                 image = draw_function()
                 
-                self.screen.show_image(image)
+                # We no longer rotate in software. The hardware command handles it.
+                self.disp.show_image(image)
                 time.sleep(0.1) 
 
         except KeyboardInterrupt:
             print("\nExiting.")
         finally:
-            self.screen.set_backlight(100)
+            self.disp.bl_DutyCycle(100)
             print("Cleanup complete.")
+
 
 if __name__ == '__main__':
     monitor = ServerMonitor()
     monitor.run()
+

@@ -4,3 +4,4 @@ spidev
 gpiozero
 smbus2
 RPi.GPIO
+lgpio
