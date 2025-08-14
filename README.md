@@ -122,3 +122,12 @@ python3 main.py
 ```
 
 The monitor should initialize and display the first screen. To stop the application, press `Ctrl+C`.
+
+
+## **Contributing**
+
+TBD. Not currently open to contributors or even expecting any interest at this point.
+
+## **License**
+
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License - see the LICENSE.md file for details.
