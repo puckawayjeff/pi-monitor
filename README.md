@@ -54,16 +54,17 @@ These instructions assume you are starting with a fresh installation of Raspberr
 First, ensure your system is up to date.
 
 ```bash
-sudo apt-get update  
-sudo apt-get upgrade -y
+sudo apt update && sudo apt upgrade -y
 ```
 
 ### **2\. Install Core Dependencies**
 
-We need `git` to clone the repository and `python3-venv` for creating our isolated Python environment.
+We need `git` to clone the repository and the `python3` packages for creating our isolated Python environment and enabling headers. 
+
+We use the `gpiozero` Python library. This performs best with `lgpio`, which depends on `libgpiod2`.
 
 ```bash
-sudo apt-get install -y git python3-venv
+sudo apt install -y git python3 python3-dev python3-venv libgpiod2
 ```
 
 ### **3\. Enable Hardware Interfaces**
@@ -75,14 +76,6 @@ sudo raspi-config
 ```
 
 Navigate to 3 Interface Options and enable I2C and SPI.
-
-### **4\. Install System-Level Library for GPIO**
-
-`gpiozero`, the Python library we use, performs best with `lgpio`. Install its underlying system dependency.
-
-```bash
-sudo apt-get install -y libgpiod2
-```
 
 After this, reboot the Pi to ensure all changes take effect.
 
