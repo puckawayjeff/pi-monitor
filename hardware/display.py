@@ -300,48 +300,37 @@ class st7789():
             self.spi_writebyte(pix[Addr : Addr+((Xend-Xstart+1)*2)])
 
     def show_image(self, Image):
-        # Set buffer to value of PIL image
-        # Write display buffer to physical display
+        """Converts a PIL image to the display's format and writes it to the framebuffer."""
         imwidth, imheight = Image.size
-        # Landscape
-        if imwidth == self.height and imheight ==  self.width:
-            img = self.np.asarray(Image)
-            pix = self.np.zeros((self.width, self.height,2), dtype = self.np.uint8)
-            # RGB888 >> RGB565
-            pix[...,[0]] = self.np.add(self.np.bitwise_and(img[...,[0]],0xF8),self.np.right_shift(img[...,[1]],5))
-            pix[...,[1]] = self.np.add(self.np.bitwise_and(self.np.left_shift(img[...,[1]],3),0xE0), self.np.right_shift(img[...,[2]],3))
-            pix = pix.flatten().tolist()
-            # Perform rotation and RGB>BGR conversion
-            self.command(0x36)
-            self.data(0x38)
-            # MADCTR data table for value 0x38
-            # MY:  0 Top to bottom
-            # MX:  0 left to right
-            # MV:  1 x-y exchange (vertical addressing mode, flips and inverts)
-            # ML:  1 scrolling/linebuffer?
-            # RGB: 1 BGR mode
-            # n/a: 0
-            # n/a: 0
-            # n/a: 0
-            self.set_windows(0, 0, self.height,self.width, 1)
-            self.digital_write(self.GPIO_DC_PIN,True)
-            for i in range(0,len(pix),4096):
-                self.spi_writebyte(pix[i:i+4096])
-        # Portrait
-        else:
-            img = self.np.asarray(Image)
-            pix = self.np.zeros((imheight,imwidth , 2), dtype = self.np.uint8)
 
-            pix[...,[0]] = self.np.add(self.np.bitwise_and(img[...,[0]],0xF8),self.np.right_shift(img[...,[1]],5))
-            pix[...,[1]] = self.np.add(self.np.bitwise_and(self.np.left_shift(img[...,[1]],3),0xE0), self.np.right_shift(img[...,[2]],3))
-            pix = pix.flatten().tolist()
-            # Perform rotation and RGB>BGR conversion
-            self.command(0x36)
-            self.data(0x48)
+        # This project exclusively uses landscape mode.
+        if not (imwidth == self.height and imheight == self.width):
+             raise ValueError(f'Image must be {self.height}x{self.width} for landscape mode.')
 
-            self.set_windows(0, 0, self.width, self.height, 0)
-            self.digital_write(self.GPIO_DC_PIN,True)
+        # Set the Memory Data Access Control (MADCTL) for 90-degree clockwise rotation
+        self.command(0x36)
+        self.data(0x38)
+        # MADCTL Bits for 0x38 (00111000):
+        #   MY (Row Addr Order)  = 0 -> Top to Bottom
+        #   MX (Col Addr Order)  = 0 -> Left to Right
+        #   MV (Row/Col Exchg)   = 1 -> Invert X/Y
+        #   ML (Line Addr Order) = 1 -> Top to Bottom
+        #   BGR (Color Order)    = 1 -> BGR
+        #   MH (H-Refresh Order) = 0 -> Left to Right
+        # This combination correctly rotates the native portrait display to landscape.
 
+        # Convert the 24-bit RGB PIL image to the 16-bit RGB565 format
+        img = self.np.asarray(Image)
+        pix = self.np.zeros((imheight, imwidth, 2), dtype=self.np.uint8)
+        pix[..., 0] = self.np.add(self.np.bitwise_and(img[..., 0], 0xF8), self.np.right_shift(img[..., 1], 5))
+        pix[..., 1] = self.np.add(self.np.bitwise_and(self.np.left_shift(img[..., 1], 3), 0xE0), self.np.right_shift(img[..., 2], 3))
+        pix = pix.flatten().tolist()
+
+        # Set the drawing window to the full screen
+        self.set_windows(0, 0, self.height - 1, self.width - 1)
+        self.digital_write(self.GPIO_DC_PIN, True)
+
+        # Write the pixel data to the display in chunks
         for i in range(0, len(pix), 4096):
             self.spi_writebyte(pix[i: i+4096])
 

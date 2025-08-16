@@ -94,17 +94,18 @@ def get_current_time():
 
 
 class ServerMonitor:
+    TITLE_BAR_HEIGHT = 40 # A fixed height for the title bar
+
     def __init__(self):
         # Initialize display and touch drivers
         self.disp = st7789()
         self.touch = cst816d()
         self.disp.clear()
-
-        # Set the display to landscape mode (90-degree clockwise rotation)
-        # This is the hardware command for orientation
+        
+        # Set an initial display orientation. This will be updated by show_image()
+        # during the first render to apply the correct landscape rotation.
         self.disp.command(0x36) # MADCTL
-        # Correct value for 90-degree rotation without mirroring
-        self.disp.data(0x00)    # MY, MV, BGR=0 -> Landscape, no mirroring
+        self.disp.data(0x00)    # Default portrait mode
 
         # Application state
         self.current_screen = 0
@@ -113,15 +114,34 @@ class ServerMonitor:
         
         # Load layout and fonts from config file
         self.config = self._load_config()
+        self.colors = self.config.get('colors', {})
         self.fonts = self._load_fonts(self.config.get('fonts', {}))
         self.screens_config = self.config.get('screens', [])
 
     def draw_base_ui(self, draw):
         """Draws persistent UI elements for landscape mode."""
-        # Left Arrow (for previous screen)
-        draw.polygon([(10, LCD_HEIGHT // 2), (30, LCD_HEIGHT // 2 - 10), (30, LCD_HEIGHT // 2 + 10)], fill="white")
-        # Right Arrow (for next screen)
-        draw.polygon([(LCD_WIDTH - 10, LCD_HEIGHT // 2), (LCD_WIDTH - 30, LCD_HEIGHT // 2 - 10), (LCD_WIDTH - 30, LCD_HEIGHT // 2 + 10)], fill="white")
+        nav_color = self.colors.get('nav_buttons', 'WHITE')
+
+        # Arrows are now smaller and in the title bar
+        arrow_y_center = self.TITLE_BAR_HEIGHT // 2
+        arrow_half_height = 8 # Approx 20% smaller than original 10
+        arrow_width = 16      # Approx 20% smaller than original 20
+
+        # Left Arrow
+        left_tip_x = 10
+        draw.polygon([
+            (left_tip_x, arrow_y_center),
+            (left_tip_x + arrow_width, arrow_y_center - arrow_half_height),
+            (left_tip_x + arrow_width, arrow_y_center + arrow_half_height)
+        ], fill=nav_color)
+
+        # Right Arrow
+        right_tip_x = LCD_WIDTH - 10
+        draw.polygon([
+            (right_tip_x, arrow_y_center),
+            (right_tip_x - arrow_width, arrow_y_center - arrow_half_height),
+            (right_tip_x - arrow_width, arrow_y_center + arrow_half_height)
+        ], fill=nav_color)
 
     def _load_config(self):
         """Loads the YAML configuration file."""
@@ -136,11 +156,14 @@ class ServerMonitor:
     def _load_fonts(self, fonts_config):
         """Loads ImageFont objects based on the config."""
         fonts = {}
+        font_dir = Path(__file__).parent / "assets" / "fonts"
         for name, details in fonts_config.items():
+            font_path = font_dir / details['path']
             try:
-                fonts[name] = ImageFont.truetype(details['path'], details['size'])
+                # Pillow expects the path as a string
+                fonts[name] = ImageFont.truetype(str(font_path), details['size'])
             except IOError:
-                print(f"Font not found at {details['path']}. Using default for '{name}'.")
+                print(f"Font not found at {font_path}. Using default for '{name}'.")
                 fonts[name] = ImageFont.load_default()
         return fonts
 
@@ -156,35 +179,43 @@ class ServerMonitor:
 
     def _draw_widget_line_item(self, draw, config):
         """Draws a 'label: value' widget."""
+        default_color = self.colors.get('widget_default', 'WHITE')
+        widget_color = config.get('color', default_color)
         value = self._get_data(config.get('data_source'))
         font = self.fonts.get(config.get('font', 'medium'))
-        draw.text(config['position'], config.get('label', ''), font=font, fill=config.get('color', 'WHITE'))
+        draw.text(config['position'], config.get('label', ''), font=font, fill=widget_color)
         data_pos = (config['position'][0] + config.get('data_x_offset', 140), config['position'][1])
-        draw.text(data_pos, str(value), font=font, fill=config.get('color', 'WHITE'))
+        draw.text(data_pos, str(value), font=font, fill=widget_color)
 
     def _draw_widget_line_item_with_sub(self, draw, config):
         """Draws a line item where the data source returns two values (main, sub)."""
+        default_color = self.colors.get('widget_default', 'WHITE')
+        widget_color = config.get('color', default_color)
         main_val, sub_val = self._get_data(config.get('data_source')) or ("N/A", "N/A")
         font = self.fonts.get(config.get('font', 'medium'))
         sub_font = self.fonts.get(config.get('sub_font', 'small'))
-        draw.text(config['position'], config.get('label', ''), font=font, fill=config.get('color', 'WHITE'))
+        draw.text(config['position'], config.get('label', ''), font=font, fill=widget_color)
         data_pos = (config['position'][0] + config.get('data_x_offset', 140), config['position'][1])
-        draw.text(data_pos, str(main_val), font=font, fill=config.get('color', 'WHITE'))
+        draw.text(data_pos, str(main_val), font=font, fill=widget_color)
         sub_pos = (data_pos[0], data_pos[1] + config.get('sub_y_offset', 20))
         draw.text(sub_pos, f"({sub_val})", font=sub_font, fill=config.get('sub_color', 'GRAY'))
 
     def _draw_widget_dynamic_text(self, draw, config):
         """Draws text using a template string."""
+        default_color = self.colors.get('widget_default', 'WHITE')
+        widget_color = config.get('color', default_color)
         value = self._get_data(config.get('data_source'))
         text = config.get('template', '{data}').format(data=value)
         font = self.fonts.get(config.get('font', 'medium'))
-        draw.text(config['position'], text, font=font, fill=config.get('color', 'WHITE'))
+        draw.text(config['position'], text, font=font, fill=widget_color)
 
     def _draw_widget_static_text(self, draw, config):
         """Draws text from a data source without a label."""
+        default_color = self.colors.get('widget_default', 'WHITE')
+        widget_color = config.get('color', default_color)
         value = self._get_data(config.get('data_source'))
         font = self.fonts.get(config.get('font', 'medium'))
-        draw.text(config['position'], str(value), font=font, fill=config.get('color', 'WHITE'))
+        draw.text(config['position'], str(value), font=font, fill=widget_color)
 
     def _draw_widget_unknown(self, draw, config):
         """Handler for unknown widget types."""
@@ -192,8 +223,18 @@ class ServerMonitor:
 
     def draw_current_screen(self):
         """Renders the current screen based on the loaded configuration."""
-        image = Image.new("RGB", (LCD_WIDTH, LCD_HEIGHT), "BLACK")
+        # Get background colors from config with sane fallbacks
+        content_bg = self.colors.get('content_background', 'BLACK')
+        title_bg = self.colors.get('title_background', 'BLACK')
+
+        # Create image with the main content background color
+        image = Image.new("RGB", (LCD_WIDTH, LCD_HEIGHT), content_bg)
         draw = ImageDraw.Draw(image)
+
+        # Draw the title bar background
+        draw.rectangle([(0, 0), (LCD_WIDTH, self.TITLE_BAR_HEIGHT)], fill=title_bg)
+
+        # Now draw the persistent UI elements on top of the new background
         self.draw_base_ui(draw)
 
         if not self.screens_config:
@@ -203,7 +244,11 @@ class ServerMonitor:
         screen_config = self.screens_config[self.current_screen]
 
         # Draw Title
-        draw.text((10, 10), screen_config.get('title', ''), font=self.fonts.get('large'), fill="CYAN")
+        default_title_color = self.colors.get('title_text', 'WHITE')
+        title_color = screen_config.get('color', default_title_color)
+        # Offset title to make room for the left arrow and center it vertically.
+        title_y = (self.TITLE_BAR_HEIGHT - self.fonts.get('large').size) // 2
+        draw.text((40, title_y), screen_config.get('title', ''), font=self.fonts.get('large'), fill=title_color)
 
         # Draw Widgets
         for widget_config in screen_config.get('widgets', []):
@@ -231,11 +276,15 @@ class ServerMonitor:
             touch_x = coordinates[0]['x']
             touch_y = coordinates[0]['y']
             
-            # Correct transformation for a 90-degree clockwise hardware rotation (MADCTL = 0xA0)
+            # The touch controller reports coordinates based on the display's native
+            # portrait orientation (240x320). We must transform these to match the
+            # 320x240 landscape view, which is rotated 90-degrees clockwise.
+            # New X = Old Y
+            # New Y = Old_Max_X - Old_X
             ui_x = touch_y
-            ui_y = touch_x
+            ui_y = LCD_HEIGHT - 1 - touch_x
 
-            # Greatly expanded touch zones to cover left and right thirds of the screen
+            # Touch zones for navigation cover the left and right thirds of the screen.
             LEFT_ZONE_X_END = LCD_WIDTH // 3
             RIGHT_ZONE_X_START = LCD_WIDTH - (LCD_WIDTH // 3)
 

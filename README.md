@@ -83,7 +83,7 @@ After this, reboot the Pi to ensure all changes take effect.
 sudo reboot
 ```
 
-### **5\. Clone and Set Up the Project**
+### **4\. Clone and Set Up the Project**
 
 Once the Pi has rebooted, log back in and run the following commands.
 
@@ -120,11 +120,26 @@ The monitor should initialize and display the first screen. To stop the applicat
 
 The layout and content of the monitor are controlled by the `config.yaml` file. This allows you to easily customize what information is displayed, change fonts, and reorder items without modifying the Python source code.
 
-The configuration is split into three main sections: `fonts`, `screens`, and `widgets`. A widget is a single element on the screen, like a line of text or a value.
+The configuration is split into three main sections: `colors`, `fonts`, and `screens`.
+
+### **Colors**
+
+The `colors` section defines the color palette for the UI. You can use standard color names (e.g., `"WHITE"`) or hex codes (e.g., `"#c29b4a"`).
+- `title_background`: Background color of the top title bar.
+- `title_text`: Default text color for screen titles.
+- `content_background`: Background color for the main content area.
+- `widget_default`: Default text color for all widgets. This can be overridden by a widget's individual color property.
+- `nav_buttons`: Color of the left/right navigation arrows in the title bar.
+
+### **Fonts**
+
+The `fonts` section defines the font styles used by the widgets. You can define multiple fonts and refer to them by name (e.g., `large`, `medium`) in your widget configurations.
+
+The `path` property should be the filename of a `.ttf` or `.otf` font file. All custom font files should be placed in the `assets/fonts/` directory.
 
 ### **Available Data Sources**
 
-Widgets in the `screens` configuration use the `data_source` property to fetch live system information. You can use any of the following built-in functions as a value for `data_source`.
+Each screen is composed of `widgets`. Widgets use the `data_source` property to fetch live system information. You can use any of the following built-in functions as a value for `data_source`.
 
 | Function Name           | Returns                                                                 | Example Output                  | Widget Compatibility      |
 | ----------------------- | ----------------------------------------------------------------------- | ------------------------------- | ------------------------- |
@@ -137,17 +152,43 @@ Widgets in the `screens` configuration use the `data_source` property to fetch l
 
 ### **Widget Types**
 
-The `type` property of a widget in `config.yaml` determines how it is rendered.
+The `type` property of a widget in `config.yaml` determines how it is rendered and what other properties it requires.
 
--   `line_item`: Displays a `label` and a value on the same line. Expects a `data_source` that returns a single value.
--   `line_item_with_sub`: Similar to `line_item`, but designed for a `data_source` that returns two values (e.g., `get_ram_info`). It displays the second value as smaller sub-text below the first.
--   `dynamic_text`: Displays text from a `template` string, where `{data}` is replaced by the value from the `data_source`.
--   `static_text`: Displays a value directly from a `data_source` without any label or template. Useful for things like the clock.
+#### `line_item`
+Displays a `label` and a value on the same line. Expects a `data_source` that returns a single value.
+- **`position`**: `[x, y]` coordinates for the label's top-left corner.
+- **`label`**: The text to display.
+- **`data_source`**: A function name from the table above that returns a single string.
+- **`data_x_offset`**: The horizontal distance (in pixels) from the start of the label to the start of the data value.
+- **`font`** (optional): The font name defined in the `fonts` section. Defaults to `medium`.
+- **`color`** (optional): The text color. Defaults to `colors.widget_default`.
 
+#### `line_item_with_sub`
+Similar to `line_item`, but for a `data_source` that returns two values (e.g., `get_ram_info`). It displays the second value as smaller sub-text below the first.
+- **`position`**, **`label`**, **`data_source`**, **`data_x_offset`**, **`font`**, **`color`**: Same as `line_item`.
+- **`data_source`**: Must be a function that returns two values.
+- **`sub_font`** (optional): The font for the sub-text. Defaults to `small`.
+- **`sub_color`** (optional): The color for the sub-text. Defaults to `GRAY`.
+- **`sub_y_offset`** (optional): The vertical distance (in pixels) from the main data value to the sub-text.
+
+#### `dynamic_text`
+Displays text from a `template` string, where `{data}` is replaced by the value from the `data_source`.
+- **`position`**: `[x, y]` coordinates for the text's top-left corner.
+- **`template`**: A string containing `{data}` as a placeholder.
+- **`data_source`**: A function name from the table above.
+- **`font`** (optional): The font name.
+- **`color`** (optional): The text color.
+
+#### `static_text`
+Displays a value directly from a `data_source` without any label or template. Useful for things like the clock.
+- **`position`**: `[x, y]` coordinates for the text's top-left corner.
+- **`data_source`**: A function name from the table above.
+- **`font`** (optional): The font name.
+- **`color`** (optional): The text color.
 
 ## **Contributing**
 
-TBD. Not currently open to contributors or even expecting any interest at this point.
+TBD. Not expecting any interest at this point, honestly. Surprise me!
 
 ## **License**
 

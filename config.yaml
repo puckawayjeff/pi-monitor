@@ -1,15 +1,22 @@
 # This file defines the layout and content of the monitor screens.
 # You can customize what is displayed by editing this file.
 
+colors:
+  title_background: "BLACK"
+  title_text: "WHITE"
+  content_background: "#2a412a"
+  widget_default: "WHITE"
+  nav_buttons: "WHITE"
+
 fonts:
   large:
-    path: "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    path: "Voltaire-Regular.ttf"
     size: 24
   medium:
-    path: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    path: "Voltaire-Regular.ttf"
     size: 18
   small:
-    path: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    path: "Voltaire-Regular.ttf"
     size: 14
 
 screens:
@@ -21,14 +28,14 @@ screens:
         label: "CPU Temp:"
         data_source: "get_cpu_temperature"
         font: "medium"
-        color: "YELLOW"
+        color: "#c29b4a"
         data_x_offset: 140
       - type: "line_item"
         position: [40, 80]
         label: "CPU Usage:"
         data_source: "get_cpu_usage"
         font: "medium"
-        color: "YELLOW"
+        color: "#c29b4a"
         data_x_offset: 140
       # A 'line_item_with_sub' is for data that returns two parts, like usage % and total size.
       - type: "line_item_with_sub"
@@ -36,7 +43,7 @@ screens:
         label: "RAM Usage:"
         data_source: "get_ram_info"
         font: "medium"
-        color: "YELLOW"
+        color: "#c29b4a"
         sub_font: "small"
         sub_color: "GRAY"
         data_x_offset: 140
@@ -47,7 +54,7 @@ screens:
         template: "IP: {data}"
         data_source: "get_ip_address"
         font: "medium"
-        color: "LIGHTGREEN"
+        color: "#4a6d4a"
       # A 'static_text' widget displays text from a function that doesn't need a label.
       - type: "static_text"
         position: [230, 210]
@@ -56,13 +63,14 @@ screens:
         color: "WHITE"
 
   - title: "Storage & Network"
+    # color: "CYAN" # Optional: overrides the default colors.title_text
     widgets:
       - type: "line_item_with_sub"
         position: [40, 60]
         label: "Disk Usage:"
         data_source: "get_disk_space"
         font: "medium"
-        color: "YELLOW"
+        color: "#c29b4a"
         sub_font: "small"
         sub_color: "GRAY"
         data_x_offset: 180

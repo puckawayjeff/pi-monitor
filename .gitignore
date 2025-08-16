@@ -14,3 +14,6 @@ __pycache__/
 *.swo
 *~
 .DS_Store
+
+# LGD Notifications
+.lgd-nfy0
