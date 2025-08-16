@@ -68,6 +68,10 @@ screens:
   - title: "Storage & Network"
     # color: "CYAN" # Optional: overrides the default colors.title_text
     widgets:
+      - type: "line_item"
+        label: "Uptime:"
+        position: [10, 50]
+        data_source: "get_system_uptime"
       - type: "line_item_with_sub"
         position: [40, 60]
         label: "Disk Usage:"
@@ -83,3 +87,97 @@ screens:
         data_source: "get_current_time"
         font: "medium"
         color: "WHITE"
+
+  - title: "Network Details"
+    widgets:
+      - type: "line_item"
+        label: "eth0 IP:"
+        position: [40, 50]
+        data_source:
+          name: "get_interface_ip"
+          args: ["eth0"]
+        data_x_offset: 120
+      - type: "line_item"
+        label: "eth0 MAC:"
+        position: [40, 80]
+        data_source:
+          name: "get_interface_mac"
+          args: ["eth0"]
+        data_x_offset: 120
+      - type: "line_item"
+        label: "Tailscale IP:"
+        position: [40, 110]
+        data_source:
+          name: "get_interface_ip"
+          args: ["tailscale0"]
+        data_x_offset: 120
+      - type: "line_item"
+        label: "Rx:"
+        position: [40, 140]
+        data_source:
+          name: "get_interface_rx"
+          args: ["eth0"]
+        data_x_offset: 120
+      - type: "line_item"
+        label: "Tx:"
+        position: [40, 170]
+        data_source:
+          name: "get_interface_tx"
+          args: ["eth0"]
+        data_x_offset: 120
+      - type: "static_text"
+        position: [230, 210]
+        data_source: "get_current_time"
+        font: "medium"
+        color: "WHITE"
+
+  - title: "Host Info"
+    widgets:
+      - type: "line_item"
+        label: "Hostname:"
+        position: [40, 50]
+        data_source: "get_hostname"
+        data_x_offset: 140
+      - type: "dynamic_text"
+        position: [40, 80]
+        template: "{data}"
+        data_source: "get_os_info"
+        font: "small"
+      - type: "line_item"
+        label: "Kernel:"
+        position: [40, 110]
+        data_source: "get_kernel_info"
+        data_x_offset: 140
+      - type: "line_item"
+        label: "CPU Cores:"
+        position: [40, 140]
+        data_source: "get_cpu_cores"
+        data_x_offset: 140
+      - type: "line_item_with_sub"
+        label: "CPU Freq:"
+        position: [40, 170]
+        data_source: "get_cpu_frequency"
+        data_x_offset: 140
+      - type: "static_text"
+        position: [230, 210]
+        data_source: "get_current_time"
+        font: "medium"
+        color: "WHITE"
+      - type: "line_item"
+        label: "CPU Max Freq:"
+        position: [40, 210] 
+        data_source: "get_cpu_max_frequency"
+        data_x_offset: 140
+
+
+
+      - type: "line_item_with_sub"
+        position: [40, 60]
+        label: "Disk Usage:"
+        data_source: "get_disk_space"
+        font: "medium"
+        color: "#c29b4a"
+        sub_font: "small"
+        sub_color: "GRAY"
+        data_x_offset: 180
+        sub_y_offset: 20

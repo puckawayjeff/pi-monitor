@@ -2,10 +2,6 @@
 from PIL import Image, ImageDraw
 from src import constants
 
-# Constants are now imported from src/constants.py
-# LCD_WIDTH = 320
-# LCD_HEIGHT = 240
-# TITLE_BAR_HEIGHT = 40
 
 class UIDrawer:
     def __init__(self, config, fonts, get_data_func):

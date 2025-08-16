@@ -14,11 +14,6 @@ from src import system_info
 from src.ui import UIDrawer
 from src import constants
 
-# --- Configuration ---
-# Screen dimensions are now in src/constants.py
-# LCD_WIDTH = 320
-# LCD_HEIGHT = 240
-
 
 class ServerMonitor:
     def __init__(self):
@@ -65,15 +60,36 @@ class ServerMonitor:
                 fonts[name] = ImageFont.load_default()
         return fonts
 
-    def _get_data(self, data_source_name):
-        """Safely gets data from a named function in the system_info module."""
-        if not data_source_name:
+    def _get_data(self, data_source):
+        """
+        Safely gets data from a named function in the system_info module.
+        Supports passing arguments from the config.
+        """
+        if not data_source:
             return None
-        # Look for the function in the system_info module
-        func = getattr(system_info, data_source_name, None)
+
+        func_name = None
+        args = []
+
+        if isinstance(data_source, str):
+            func_name = data_source
+        elif isinstance(data_source, dict):
+            func_name = data_source.get('name')
+            args = data_source.get('args', [])
+
+        if not func_name:
+            print(f"Warning: Invalid data_source format in config: {data_source}")
+            return "Error"
+
+        func = getattr(system_info, func_name, None)
         if callable(func):
-            return func()
-        print(f"Warning: Data source function '{data_source_name}' not found in system_info.py.")
+            try:
+                return func(*args)  # Pass arguments to the function
+            except Exception as e:
+                print(f"Error calling {func_name} with args {args}: {e}")
+                return "Call Error"
+
+        print(f"Warning: Data source function '{func_name}' not found in system_info.py.")
         return "Error"
 
     def take_screenshot(self):
@@ -109,10 +125,12 @@ class ServerMonitor:
                 return
 
             self.last_activity_time = time.time()
-            touch_x = coordinates[0]['x']
+            # "touch_x" is unused because we're only concerned with the horizontal value of the touch
+            # touch_x = coordinates[0]['x']
             touch_y = coordinates[0]['y']
             ui_x = touch_y
-            ui_y = constants.LCD_HEIGHT - 1 - touch_x
+            # "ui_y" is unused because we're only concerned with the horizontal value of the touch
+            # ui_y = constants.LCD_HEIGHT - 1 - touch_x
             LEFT_ZONE_X_END = constants.LCD_WIDTH // 3
             RIGHT_ZONE_X_START = constants.LCD_WIDTH - (constants.LCD_WIDTH // 3)
 
