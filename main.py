@@ -8,6 +8,8 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 import psutil
+import sys
+import select
 
 # --- Local Driver Imports ---
 from hardware.display import st7789, cst816d
@@ -259,6 +261,29 @@ class ServerMonitor:
 
         return image
 
+    def take_screenshot(self):
+        """Saves the current screen content to a file."""
+        print("Taking screenshot...")
+        image = self.draw_current_screen()
+
+        screenshots_dir = Path(__file__).parent / "screenshots"
+        screenshots_dir.mkdir(exist_ok=True)
+
+        filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        filepath = screenshots_dir / filename
+
+        try:
+            image.save(filepath)
+            print(f"Screenshot saved to {filepath}")
+        except Exception as e:
+            print(f"Error saving screenshot: {e}")
+
+    def _check_for_keyboard_input(self):
+        """Checks for and handles keyboard input without blocking the main loop."""
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            command = sys.stdin.readline().strip().lower()
+            if command == 's':
+                self.take_screenshot()
 
     def handle_input(self):
         """Handles touch input for navigation and wake-up."""
@@ -316,8 +341,10 @@ class ServerMonitor:
     def run(self):
         """Main application loop."""
         print("Starting Server Monitor...")
+        print("Press 's' and then Enter in this terminal to take a screenshot.")
         try:
             while True:
+                self._check_for_keyboard_input()
                 self.handle_input()
 
                 if self.is_sleeping:

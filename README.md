@@ -2,7 +2,7 @@
 
 A responsive, touchscreen system monitor for headless Raspberry Pi servers, designed to provide at-a-glance status information with an aesthetic inspired by Ubiquiti UniFi hardware.
 
-![A photo of the running monitor in its 1U rack enclosure](./assets/monitor-in-rack.jpg)
+![A photo of the running monitor in its 1U rack enclosure](./assets/images/monitor-in-rack.jpg)
 
 ## **Overview**
 
@@ -115,6 +115,10 @@ python3 main.py
 ```
 
 The monitor should initialize and display the first screen. To stop the application, press `Ctrl+C`.
+
+**Taking Screenshots:** For documentation or development, you can save an image of the current screen by pressing `s` and then `Enter` in the terminal where the application is running. Screenshots are saved to a `screenshots/` directory in the project folder.
+
+![A screenshot of the default main screen](./assets/images/screenshot-main.png)
 
 ## **Configuration (`config.yaml`)**
 
