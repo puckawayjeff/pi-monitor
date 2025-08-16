@@ -2,7 +2,7 @@ Pillow
 numpy
 spidev
 gpiozero
-smbus2
-RPi.GPIO
-lgpio
 PyYAML
+smbus2
+lgpio
+psutil

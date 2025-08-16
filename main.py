@@ -1,12 +1,13 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 import time
+import socket
 import yaml
 import subprocess
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
-
+import psutil
 
 # --- Local Driver Imports ---
 from hardware.display import st7789, cst816d
@@ -18,6 +19,9 @@ LCD_HEIGHT = 240
 
 # Inactivity timeout (in seconds)
 INACTIVITY_TIMEOUT = 60
+
+# Initialize psutil for CPU usage calculation
+psutil.cpu_percent(interval=None)
 
 # --- System Info Functions ---
 def get_cpu_temperature():
@@ -33,11 +37,12 @@ def get_cpu_temperature():
 
 def get_cpu_usage():
     """Gets the CPU usage percentage."""
+    # By calling with interval=None, it compares to the last time it was called.
+    # The initial call at the top of the file primes it.
     try:
-        cmd = "top -bn1 | grep 'Cpu(s)' | sed 's/.*, *\\([0-9.]*\\)%* id.*/\\1/' | awk '{print 100 - $1}'"
-        usage = subprocess.check_output(cmd, shell=True).decode('UTF-8').strip()
-        return f"{float(usage):.1f}%"
-    except (subprocess.CalledProcessError, ValueError) as e:
+        usage = psutil.cpu_percent(interval=None)
+        return f"{usage:.1f}%"
+    except Exception as e:
         print(f"Error getting CPU usage: {e}")
         return "N/A"
 
@@ -45,12 +50,12 @@ def get_cpu_usage():
 def get_ram_info():
     """Gets RAM usage information."""
     try:
-        cmd = "free -m | awk 'NR==2{printf \"%.2f%%\", $3*100/$2 }'"
-        usage_percent = subprocess.check_output(cmd, shell=True).decode('UTF-8').strip()
-        cmd = "free -m | awk 'NR==2{printf \"%s/%sMB\", $3,$2}'"
-        usage_mb = subprocess.check_output(cmd, shell=True).decode('UTF-8').strip()
+        mem = psutil.virtual_memory()
+        usage_percent = f"{mem.percent}%"
+        # psutil gives bytes, so we convert to MB for the display
+        usage_mb = f"{int(mem.used / (1024**2))}/{int(mem.total / (1024**2))}MB"
         return usage_percent, usage_mb
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         print(f"Error getting RAM info: {e}")
         return "N/A", "N/A"
 
@@ -58,12 +63,12 @@ def get_ram_info():
 def get_disk_space():
     """Gets disk space information for the root directory."""
     try:
-        cmd = "df -h / | awk 'NR==2{printf \"%s\", $5}'"
-        usage_percent = subprocess.check_output(cmd, shell=True).decode('UTF-8').strip()
-        cmd = "df -h / | awk 'NR==2{printf \"%s/%s\", $3,$2}'"
-        usage_gb = subprocess.check_output(cmd, shell=True).decode('UTF-8').strip()
+        disk = psutil.disk_usage('/')
+        usage_percent = f"{disk.percent}%"
+        # psutil gives bytes, so we convert to GB for the display
+        usage_gb = f"{disk.used / (1024**3):.1f}G/{disk.total / (1024**3):.1f}G"
         return usage_percent, usage_gb
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         print(f"Error getting disk space: {e}")
         return "N/A", "N/A"
 
@@ -71,10 +76,15 @@ def get_disk_space():
 def get_ip_address():
     """Gets the primary IP address of the Pi."""
     try:
-        cmd = "hostname -I | cut -d' ' -f1"
-        ip = subprocess.check_output(cmd, shell=True).decode('UTF-8').strip()
-        return ip if ip else "Not Connected"
-    except subprocess.CalledProcessError as e:
+        interfaces = psutil.net_if_addrs()
+        for interface_name, snic_list in interfaces.items():
+            # Find a non-loopback interface with an IPv4 address
+            if interface_name != 'lo':
+                for snic in snic_list:
+                    if snic.family == socket.AF_INET:
+                        return snic.address
+        return "Not Connected"
+    except Exception as e:
         print(f"Error getting IP address: {e}")
         return "N/A"
 

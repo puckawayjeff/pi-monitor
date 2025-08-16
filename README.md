@@ -116,6 +116,34 @@ python3 main.py
 
 The monitor should initialize and display the first screen. To stop the application, press `Ctrl+C`.
 
+## **Configuration (`config.yaml`)**
+
+The layout and content of the monitor are controlled by the `config.yaml` file. This allows you to easily customize what information is displayed, change fonts, and reorder items without modifying the Python source code.
+
+The configuration is split into three main sections: `fonts`, `screens`, and `widgets`. A widget is a single element on the screen, like a line of text or a value.
+
+### **Available Data Sources**
+
+Widgets in the `screens` configuration use the `data_source` property to fetch live system information. You can use any of the following built-in functions as a value for `data_source`.
+
+| Function Name           | Returns                                                                 | Example Output                  | Widget Compatibility      |
+| ----------------------- | ----------------------------------------------------------------------- | ------------------------------- | ------------------------- |
+| `get_cpu_temperature`   | A single string with the CPU temperature.                               | `"45.1°C"`                      | `line_item`, `dynamic_text` |
+| `get_cpu_usage`         | A single string with the current CPU usage percentage.                  | `"15.7%"`                       | `line_item`, `dynamic_text` |
+| `get_ram_info`          | Two strings: the usage percentage and a `used/total` summary.           | `("25.4%", "1001/3944MB")`       | `line_item_with_sub`      |
+| `get_disk_space`        | Two strings: the usage percentage and a `used/total` summary for root.  | `("68.2%", "19.8G/29.1G")`       | `line_item_with_sub`      |
+| `get_ip_address`        | A single string with the primary IPv4 address.                          | `"192.168.1.10"`                | `line_item`, `dynamic_text` |
+| `get_current_time`      | A single string with the current time.                                  | `"22:10:45"`                    | `static_text`             |
+
+### **Widget Types**
+
+The `type` property of a widget in `config.yaml` determines how it is rendered.
+
+-   `line_item`: Displays a `label` and a value on the same line. Expects a `data_source` that returns a single value.
+-   `line_item_with_sub`: Similar to `line_item`, but designed for a `data_source` that returns two values (e.g., `get_ram_info`). It displays the second value as smaller sub-text below the first.
+-   `dynamic_text`: Displays text from a `template` string, where `{data}` is replaced by the value from the `data_source`.
+-   `static_text`: Displays a value directly from a `data_source` without any label or template. Useful for things like the clock.
+
 
 ## **Contributing**
 
