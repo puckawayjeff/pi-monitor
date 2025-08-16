@@ -1,0 +1,74 @@
+# This file defines the layout and content of the monitor screens.
+# You can customize what is displayed by editing this file.
+
+fonts:
+  large:
+    path: "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    size: 24
+  medium:
+    path: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    size: 18
+  small:
+    path: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    size: 14
+
+screens:
+  - title: "System Overview"
+    widgets:
+      # A 'line_item' displays a label and a value on the same line.
+      - type: "line_item"
+        position: [40, 50]
+        label: "CPU Temp:"
+        data_source: "get_cpu_temperature"
+        font: "medium"
+        color: "YELLOW"
+        data_x_offset: 140
+      - type: "line_item"
+        position: [40, 80]
+        label: "CPU Usage:"
+        data_source: "get_cpu_usage"
+        font: "medium"
+        color: "YELLOW"
+        data_x_offset: 140
+      # A 'line_item_with_sub' is for data that returns two parts, like usage % and total size.
+      - type: "line_item_with_sub"
+        position: [40, 110]
+        label: "RAM Usage:"
+        data_source: "get_ram_info"
+        font: "medium"
+        color: "YELLOW"
+        sub_font: "small"
+        sub_color: "GRAY"
+        data_x_offset: 140
+        sub_y_offset: 20
+      # A 'dynamic_text' widget displays formatted text from a data source.
+      - type: "dynamic_text"
+        position: [10, 210]
+        template: "IP: {data}"
+        data_source: "get_ip_address"
+        font: "medium"
+        color: "LIGHTGREEN"
+      # A 'static_text' widget displays text from a function that doesn't need a label.
+      - type: "static_text"
+        position: [230, 210]
+        data_source: "get_current_time"
+        font: "medium"
+        color: "WHITE"
+
+  - title: "Storage & Network"
+    widgets:
+      - type: "line_item_with_sub"
+        position: [40, 60]
+        label: "Disk Usage:"
+        data_source: "get_disk_space"
+        font: "medium"
+        color: "YELLOW"
+        sub_font: "small"
+        sub_color: "GRAY"
+        data_x_offset: 180
+        sub_y_offset: 20
+      - type: "static_text"
+        position: [230, 210]
+        data_source: "get_current_time"
+        font: "medium"
+        color: "WHITE"

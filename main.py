@@ -1,11 +1,12 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
-import sys
-import os
 import time
+import yaml
 import subprocess
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
+from pathlib import Path
+
 
 # --- Local Driver Imports ---
 from hardware.display import st7789, cst816d
@@ -18,9 +19,7 @@ LCD_HEIGHT = 240
 # Inactivity timeout (in seconds)
 INACTIVITY_TIMEOUT = 60
 
-
 # --- System Info Functions ---
-
 def get_cpu_temperature():
     """Gets the CPU temperature."""
     try:
@@ -31,6 +30,7 @@ def get_cpu_temperature():
         print(f"Error getting CPU temp: {e}")
         return "N/A"
 
+
 def get_cpu_usage():
     """Gets the CPU usage percentage."""
     try:
@@ -40,6 +40,7 @@ def get_cpu_usage():
     except (subprocess.CalledProcessError, ValueError) as e:
         print(f"Error getting CPU usage: {e}")
         return "N/A"
+
 
 def get_ram_info():
     """Gets RAM usage information."""
@@ -53,6 +54,7 @@ def get_ram_info():
         print(f"Error getting RAM info: {e}")
         return "N/A", "N/A"
 
+
 def get_disk_space():
     """Gets disk space information for the root directory."""
     try:
@@ -64,7 +66,8 @@ def get_disk_space():
     except subprocess.CalledProcessError as e:
         print(f"Error getting disk space: {e}")
         return "N/A", "N/A"
-        
+
+
 def get_ip_address():
     """Gets the primary IP address of the Pi."""
     try:
@@ -75,7 +78,10 @@ def get_ip_address():
         print(f"Error getting IP address: {e}")
         return "N/A"
 
-# --- Main Application Class ---
+def get_current_time():
+    """Gets the current time formatted as HH:MM:SS."""
+    return datetime.now().strftime("%H:%M:%S")
+
 
 class ServerMonitor:
     def __init__(self):
@@ -92,21 +98,14 @@ class ServerMonitor:
 
         # Application state
         self.current_screen = 0
-        self.screens = [self.draw_screen_1, self.draw_screen_2]
         self.is_sleeping = False
         self.last_activity_time = time.time()
         
-        # Load fonts
-        try:
-            self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
-            self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
-            self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-        except IOError:
-            print("Default fonts not found, using fallback.")
-            self.font_large = ImageFont.load_default()
-            self.font_medium = ImageFont.load_default()
-            self.font_small = ImageFont.load_default()
-            
+        # Load layout and fonts from config file
+        self.config = self._load_config()
+        self.fonts = self._load_fonts(self.config.get('fonts', {}))
+        self.screens_config = self.config.get('screens', [])
+
     def draw_base_ui(self, draw):
         """Draws persistent UI elements for landscape mode."""
         # Left Arrow (for previous screen)
@@ -114,60 +113,97 @@ class ServerMonitor:
         # Right Arrow (for next screen)
         draw.polygon([(LCD_WIDTH - 10, LCD_HEIGHT // 2), (LCD_WIDTH - 30, LCD_HEIGHT // 2 - 10), (LCD_WIDTH - 30, LCD_HEIGHT // 2 + 10)], fill="white")
 
+    def _load_config(self):
+        """Loads the YAML configuration file."""
+        config_path = Path(__file__).parent / "config.yaml"
+        try:
+            with open(config_path, 'r') as f:
+                return yaml.safe_load(f)
+        except (IOError, yaml.YAMLError) as e:
+            print(f"Error loading or parsing config.yaml: {e}")
+            return {} # Return empty config on error
 
-    def draw_screen_1(self):
-        """Draws the main overview screen (CPU, RAM)."""
+    def _load_fonts(self, fonts_config):
+        """Loads ImageFont objects based on the config."""
+        fonts = {}
+        for name, details in fonts_config.items():
+            try:
+                fonts[name] = ImageFont.truetype(details['path'], details['size'])
+            except IOError:
+                print(f"Font not found at {details['path']}. Using default for '{name}'.")
+                fonts[name] = ImageFont.load_default()
+        return fonts
+
+    def _get_data(self, data_source_name):
+        """Safely gets data from a named function."""
+        if not data_source_name:
+            return None
+        func = globals().get(data_source_name)
+        if callable(func):
+            return func()
+        print(f"Warning: Data source function '{data_source_name}' not found.")
+        return "Error"
+
+    def _draw_widget_line_item(self, draw, config):
+        """Draws a 'label: value' widget."""
+        value = self._get_data(config.get('data_source'))
+        font = self.fonts.get(config.get('font', 'medium'))
+        draw.text(config['position'], config.get('label', ''), font=font, fill=config.get('color', 'WHITE'))
+        data_pos = (config['position'][0] + config.get('data_x_offset', 140), config['position'][1])
+        draw.text(data_pos, str(value), font=font, fill=config.get('color', 'WHITE'))
+
+    def _draw_widget_line_item_with_sub(self, draw, config):
+        """Draws a line item where the data source returns two values (main, sub)."""
+        main_val, sub_val = self._get_data(config.get('data_source')) or ("N/A", "N/A")
+        font = self.fonts.get(config.get('font', 'medium'))
+        sub_font = self.fonts.get(config.get('sub_font', 'small'))
+        draw.text(config['position'], config.get('label', ''), font=font, fill=config.get('color', 'WHITE'))
+        data_pos = (config['position'][0] + config.get('data_x_offset', 140), config['position'][1])
+        draw.text(data_pos, str(main_val), font=font, fill=config.get('color', 'WHITE'))
+        sub_pos = (data_pos[0], data_pos[1] + config.get('sub_y_offset', 20))
+        draw.text(sub_pos, f"({sub_val})", font=sub_font, fill=config.get('sub_color', 'GRAY'))
+
+    def _draw_widget_dynamic_text(self, draw, config):
+        """Draws text using a template string."""
+        value = self._get_data(config.get('data_source'))
+        text = config.get('template', '{data}').format(data=value)
+        font = self.fonts.get(config.get('font', 'medium'))
+        draw.text(config['position'], text, font=font, fill=config.get('color', 'WHITE'))
+
+    def _draw_widget_static_text(self, draw, config):
+        """Draws text from a data source without a label."""
+        value = self._get_data(config.get('data_source'))
+        font = self.fonts.get(config.get('font', 'medium'))
+        draw.text(config['position'], str(value), font=font, fill=config.get('color', 'WHITE'))
+
+    def _draw_widget_unknown(self, draw, config):
+        """Handler for unknown widget types."""
+        print(f"Unknown widget type: {config.get('type')}")
+
+    def draw_current_screen(self):
+        """Renders the current screen based on the loaded configuration."""
         image = Image.new("RGB", (LCD_WIDTH, LCD_HEIGHT), "BLACK")
         draw = ImageDraw.Draw(image)
         self.draw_base_ui(draw)
 
-        # Title
-        draw.text((10, 10), "System Overview", font=self.font_large, fill="CYAN")
-        
-        # CPU Info
-        draw.text((40, 50), "CPU Temp:", font=self.font_medium, fill="WHITE")
-        draw.text((180, 50), get_cpu_temperature(), font=self.font_medium, fill="YELLOW")
-        
-        draw.text((40, 80), "CPU Usage:", font=self.font_medium, fill="WHITE")
-        draw.text((180, 80), get_cpu_usage(), font=self.font_medium, fill="YELLOW")
+        if not self.screens_config:
+            draw.text((10, 10), "Error: No screens in config.yaml", font=self.fonts.get('medium'), fill="RED")
+            return image
 
-        # RAM Info
-        ram_percent, ram_mb = get_ram_info()
-        draw.text((40, 110), "RAM Usage:", font=self.font_medium, fill="WHITE")
-        draw.text((180, 110), ram_percent, font=self.font_medium, fill="YELLOW")
-        draw.text((180, 130), f"({ram_mb})", font=self.font_small, fill="GRAY")
-        
-        # IP and Time
-        now = datetime.now().strftime("%H:%M:%S")
-        draw.text((10, 210), f"IP: {get_ip_address()}", font=self.font_medium, fill="LIGHTGREEN")
-        draw.text((LCD_WIDTH - 90, 210), now, font=self.font_medium, fill="WHITE")
+        screen_config = self.screens_config[self.current_screen]
+
+        # Draw Title
+        draw.text((10, 10), screen_config.get('title', ''), font=self.fonts.get('large'), fill="CYAN")
+
+        # Draw Widgets
+        for widget_config in screen_config.get('widgets', []):
+            widget_type = widget_config.get('type', 'unknown')
+            draw_func_name = f"_draw_widget_{widget_type}"
+            draw_func = getattr(self, draw_func_name, self._draw_widget_unknown)
+            draw_func(draw, widget_config)
 
         return image
 
-    def draw_screen_2(self):
-        """Draws the storage and network screen."""
-        image = Image.new("RGB", (LCD_WIDTH, LCD_HEIGHT), "BLACK")
-        draw = ImageDraw.Draw(image)
-        self.draw_base_ui(draw)
-
-        # Title
-        draw.text((10, 10), "Storage & Network", font=self.font_large, fill="CYAN")
-
-        # Disk Info
-        disk_percent, disk_gb = get_disk_space()
-        draw.text((40, 60), "Disk Usage:", font=self.font_medium, fill="WHITE")
-        draw.text((180, 60), disk_percent, font=self.font_medium, fill="YELLOW")
-        draw.text((180, 80), f"({disk_gb})", font=self.font_small, fill="GRAY")
-
-        # IP Address
-        draw.text((40, 120), "IP Address:", font=self.font_medium, fill="WHITE")
-        draw.text((40, 150), get_ip_address(), font=self.font_medium, fill="LIGHTGREEN")
-        
-        # Time
-        now = datetime.now().strftime("%H:%M:%S")
-        draw.text((LCD_WIDTH - 90, 210), now, font=self.font_medium, fill="WHITE")
-
-        return image
 
     def handle_input(self):
         """Handles touch input for navigation and wake-up."""
@@ -194,12 +230,12 @@ class ServerMonitor:
             RIGHT_ZONE_X_START = LCD_WIDTH - (LCD_WIDTH // 3)
 
             if ui_x < LEFT_ZONE_X_END:
-                self.current_screen = (self.current_screen - 1) % len(self.screens)
+                self.current_screen = (self.current_screen - 1) % len(self.screens_config)
                 print("Touched Left - Previous Screen")
                 time.sleep(0.1)
 
             elif ui_x > RIGHT_ZONE_X_START:
-                self.current_screen = (self.current_screen + 1) % len(self.screens)
+                self.current_screen = (self.current_screen + 1) % len(self.screens_config)
                 print("Touched Right - Next Screen")
                 time.sleep(0.1)
 
@@ -233,8 +269,7 @@ class ServerMonitor:
                     self.sleep_display()
                     continue
 
-                draw_function = self.screens[self.current_screen]
-                image = draw_function()
+                image = self.draw_current_screen()
                 
                 # We no longer rotate in software. The hardware command handles it.
                 self.disp.show_image(image)
@@ -250,4 +285,3 @@ class ServerMonitor:
 if __name__ == '__main__':
     monitor = ServerMonitor()
     monitor.run()
-

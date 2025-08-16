@@ -2,11 +2,9 @@
 # -*- coding:utf-8 -*-
 import time
 import spidev
-import logging
 import numpy as np
 from gpiozero import DigitalOutputDevice, PWMOutputDevice, Button
 import smbus2 as smbus
-import RPi.GPIO
 
 # ST7789T3 (display) config -- waveshare default pin assignments
 RST_PIN  = 27
@@ -357,31 +355,21 @@ class st7789():
 
 class cst816d():
     def __init__(self):
-        self.GPIO = RPi.GPIO
-        self.GPIO.setmode(self.GPIO.BCM)
-        self.GPIO.setwarnings(False)
         # Initialize I2C
         self.I2C = smbus.SMBus(1)
-        self.GPIO.setup(TP_RST, self.GPIO.OUT)
+        # Initialize GPIO pins using gpiozero
+        self.GPIO_TP_RST = DigitalOutputDevice(TP_RST)
         self.GPIO_TP_INT = Button(TP_INT)
-        
         self.coordinates = [{"x": 0, "y": 0} for _ in range(2)]
         self.point_count = 0
         self.touch_rst()
 
-    def Int_Callback(self):
-        self.read_touch_data()
-
     # Reset
     def touch_rst(self):
-        self.GPIO.output(TP_RST, 0)
-        time.sleep(1 / 1000.0)
-        self.GPIO.output(TP_RST, 1)
-        time.sleep(50 / 1000.0)
-
-
-    def write_cmd(self, cmd):
-        self.I2C.write_byte(0x15, data)
+        self.GPIO_TP_RST.off()
+        time.sleep(0.001)
+        self.GPIO_TP_RST.on()
+        time.sleep(0.05)
 
     def read_bytes(self, reg_addr, length):
         # send register address and read multiple bytes
