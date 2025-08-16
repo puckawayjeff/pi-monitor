@@ -23,8 +23,11 @@ LCD_HEIGHT = 240
 psutil.cpu_percent(interval=None)
 
 # --- System Info Functions ---
+
+
 def get_cpu_temperature():
     """Gets the CPU temperature."""
+
     try:
         temp_str = subprocess.check_output(['vcgencmd', 'measure_temp']).decode('UTF-8')
         temp = float(temp_str.split('=')[1].split('\'')[0])
@@ -87,30 +90,26 @@ def get_ip_address():
         print(f"Error getting IP address: {e}")
         return "N/A"
 
+
 def get_current_time():
     """Gets the current time formatted as HH:MM:SS."""
     return datetime.now().strftime("%H:%M:%S")
 
 
 class ServerMonitor:
-    TITLE_BAR_HEIGHT = 40 # A fixed height for the title bar
+    TITLE_BAR_HEIGHT = 40  # A fixed height for the title bar
 
     def __init__(self):
         # Initialize display and touch drivers
         self.disp = st7789()
         self.touch = cst816d()
         self.disp.clear()
-        
-        # Set an initial display orientation. This will be updated by show_image()
-        # during the first render to apply the correct landscape rotation.
-        self.disp.command(0x36) # MADCTL
-        self.disp.data(0x00)    # Default portrait mode
 
         # Application state
         self.current_screen = 0
         self.is_sleeping = False
         self.last_activity_time = time.time()
-        
+
         # Load layout and fonts from config file
         self.config = self._load_config()
         self.inactivity_timeout = self.config.get('screen_timeout', 60)
@@ -124,8 +123,8 @@ class ServerMonitor:
 
         # Arrows are now smaller and in the title bar
         arrow_y_center = self.TITLE_BAR_HEIGHT // 2
-        arrow_half_height = 8 # Approx 20% smaller than original 10
-        arrow_width = 16      # Approx 20% smaller than original 20
+        arrow_half_height = 8
+        arrow_width = 16
 
         # Left Arrow
         left_tip_x = 10
@@ -151,7 +150,7 @@ class ServerMonitor:
                 return yaml.safe_load(f)
         except (IOError, yaml.YAMLError) as e:
             print(f"Error loading or parsing config.yaml: {e}")
-            return {} # Return empty config on error
+            return {}  # Return empty config on error
 
     def _load_fonts(self, fonts_config):
         """Loads ImageFont objects based on the config."""
@@ -295,10 +294,10 @@ class ServerMonitor:
                 return
 
             self.last_activity_time = time.time()
-            
+
             touch_x = coordinates[0]['x']
             touch_y = coordinates[0]['y']
-            
+
             # The touch controller reports coordinates based on the display's native
             # portrait orientation (240x320). We must transform these to match the
             # 320x240 landscape view, which is rotated 90-degrees clockwise.
@@ -313,25 +312,21 @@ class ServerMonitor:
 
             if ui_x < LEFT_ZONE_X_END:
                 self.current_screen = (self.current_screen - 1) % len(self.screens_config)
-                print("Touched Left - Previous Screen")
                 time.sleep(0.1)
 
             elif ui_x > RIGHT_ZONE_X_START:
                 self.current_screen = (self.current_screen + 1) % len(self.screens_config)
-                print("Touched Right - Next Screen")
                 time.sleep(0.1)
 
     def sleep_display(self):
         """Turn off the backlight to save power."""
         if not self.is_sleeping:
-            print("Going to sleep...")
             self.is_sleeping = True
             self.disp.bl_DutyCycle(0)
 
     def wake_up(self):
         """Turn the backlight on."""
         if self.is_sleeping:
-            print("Waking up...")
             self.is_sleeping = False
             self.disp.bl_DutyCycle(100)
             self.last_activity_time = time.time()
@@ -356,10 +351,8 @@ class ServerMonitor:
                     continue
 
                 image = self.draw_current_screen()
-                
-                # We no longer rotate in software. The hardware command handles it.
                 self.disp.show_image(image)
-                time.sleep(0.1) 
+                time.sleep(0.1)
 
         except KeyboardInterrupt:
             print("\nExiting.")

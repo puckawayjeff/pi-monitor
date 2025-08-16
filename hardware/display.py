@@ -7,27 +7,28 @@ from gpiozero import DigitalOutputDevice, PWMOutputDevice, Button
 import smbus2 as smbus
 
 # ST7789T3 (display) config -- waveshare default pin assignments
-RST_PIN  = 27
-DC_PIN   = 25
-BL_PIN   = 18
+RST_PIN = 27
+DC_PIN = 25
+BL_PIN = 18
 
 # CST816D (touch) config -- waveshare default pin assignments
-TP_INT   = 4
-TP_RST   = 17
+TP_INT = 4
+TP_RST = 17
+
 
 class st7789():
     def __init__(self):
-        self.np=np
-        self.width  = 240
+        self.np = np
+        self.width = 240
         self.height = 320
 
-        self.GPIO_RST_PIN = DigitalOutputDevice(RST_PIN,active_high = True,initial_value =True)
-        self.GPIO_DC_PIN  = DigitalOutputDevice(DC_PIN,active_high = True,initial_value =True)
-        self.GPIO_BL_PIN  = PWMOutputDevice(BL_PIN,frequency = 1000) # PWM frequency （backlight）
+        self.GPIO_RST_PIN = DigitalOutputDevice(RST_PIN, active_high=True, initial_value=True)
+        self.GPIO_DC_PIN = DigitalOutputDevice(DC_PIN, active_high=True, initial_value=True)
+        self.GPIO_BL_PIN = PWMOutputDevice(BL_PIN, frequency=1000)  # PWM frequency （backlight）
         self.bl_DutyCycle(100)
 
         # Initialize SPI
-        self.SPI = spidev.SpiDev(0,0)
+        self.SPI = spidev.SpiDev(0, 0)
         self.SPI.max_speed_hz = 40000000
         self.SPI.mode = 0b00
 
@@ -44,7 +45,7 @@ class st7789():
             Pin.off()
 
     def spi_writebyte(self, data):
-        if self.SPI!=None :
+        if self.SPI is not None:
             self.SPI.writebytes(data)
 
     def command(self, cmd):
@@ -57,20 +58,20 @@ class st7789():
 
     def reset(self):
         # Reset the display
-        self.digital_write(self.GPIO_RST_PIN,True)
+        self.digital_write(self.GPIO_RST_PIN, True)
         time.sleep(0.01)
-        self.digital_write(self.GPIO_RST_PIN,False)
+        self.digital_write(self.GPIO_RST_PIN, False)
         time.sleep(0.01)
-        self.digital_write(self.GPIO_RST_PIN,True)
+        self.digital_write(self.GPIO_RST_PIN, True)
         time.sleep(0.01)
 
     def dre_rectangle(self, Xstart, Ystart, Xend, Yend, color):
         color_high = (color >> 8) & 0xFF
         color_low = color & 0xFF
 
-        self.set_windows( Xstart, Ystart, Xend, Yend)
-        for a in range (Xstart, Xend+1):
-            for b in range (Ystart , Yend + 1):
+        self.set_windows(Xstart, Ystart, Xend, Yend)
+        for a in range(Xstart, Xend + 1):
+            for b in range(Ystart, Yend + 1):
                 self.data(color_high)
                 self.data(color_low)
 
@@ -247,18 +248,18 @@ class st7789():
         # Turns the display on, enabling output from the frame memory.
         self.command(0x29)
 
-    def set_windows(self, Xstart, Ystart, Xend, Yend, horizontal = 0):
+    def set_windows(self, Xstart, Ystart, Xend, Yend, horizontal=0):
         # set the X coordinates
         self.command(0x2A)
-        self.data(Xstart>>8)       #Set the horizontal starting point to the high octet
-        self.data(Xstart & 0xff)   #Set the horizontal starting point to the low octet
-        self.data(Xend>>8)         #Set the horizontal end to the high octet
-        self.data((Xend) & 0xff)   #Set the horizontal end to the low octet
+        self.data(Xstart >> 8)    # Set horizontal start point to high octet
+        self.data(Xstart & 0xff)  # Set horizontal start point to low octet
+        self.data(Xend >> 8)      # Set horizontal end to high octet
+        self.data((Xend) & 0xff)  # Set horizontal end to low octet
         # set the Y coordinates
         self.command(0x2B)
-        self.data(Ystart>>8)
+        self.data(Ystart >> 8)
         self.data((Ystart & 0xff))
-        self.data(Yend>>8)
+        self.data(Yend >> 8)
         self.data((Yend) & 0xff)
         self.command(0x2C)
 
@@ -270,10 +271,10 @@ class st7789():
             raise ValueError('Image must be same dimensions as display \
                 ({0}x{1}).' .format(self.width, self.height))
         img = self.np.asarray(Image)
-        pix = self.np.zeros((imheight,imwidth , 2), dtype = self.np.uint8)
+        pix = self.np.zeros((imheight, imwidth, 2), dtype=self.np.uint8)
         # RGB888 >> RGB565
-        pix[...,[0]] = self.np.add(self.np.bitwise_and(img[...,[0]],0xF8),self.np.right_shift(img[...,[1]],5))
-        pix[...,[1]] = self.np.add(self.np.bitwise_and(self.np.left_shift(img[...,[1]],3),0xE0), self.np.right_shift(img[...,[2]],3))
+        pix[..., [0]] = self.np.add(self.np.bitwise_and(img[..., [0]], 0xF8), self.np.right_shift(img[..., [1]], 5))
+        pix[..., [1]] = self.np.add(self.np.bitwise_and(self.np.left_shift(img[..., [1]], 3), 0xE0), self.np.right_shift(img[..., [2]], 3))
         pix = pix.flatten().tolist()
 
         if Xstart > Xend:
@@ -292,12 +293,12 @@ class st7789():
         if Yend < self.width - 1:
             Yend = Yend + 1
 
-        self.set_windows( Xstart, Ystart, Xend, Yend)
-        self.digital_write(self.GPIO_DC_PIN,True)
+        self.set_windows(Xstart, Ystart, Xend, Yend)
+        self.digital_write(self.GPIO_DC_PIN, True)
 
-        for i in range (Ystart,Yend):
+        for i in range(Ystart, Yend):
             Addr = ((Xstart) + (i * 240)) * 2
-            self.spi_writebyte(pix[Addr : Addr+((Xend-Xstart+1)*2)])
+            self.spi_writebyte(pix[Addr: Addr+((Xend-Xstart+1)*2)])
 
     def show_image(self, Image):
         """Converts a PIL image to the display's format and writes it to the framebuffer."""
@@ -305,7 +306,7 @@ class st7789():
 
         # This project exclusively uses landscape mode.
         if not (imwidth == self.height and imheight == self.width):
-             raise ValueError(f'Image must be {self.height}x{self.width} for landscape mode.')
+            raise ValueError(f'Image must be {self.height}x{self.width} for landscape mode.')
 
         # Set the Memory Data Access Control (MADCTL) for 90-degree clockwise rotation
         self.command(0x36)
@@ -393,4 +394,4 @@ class cst816d():
             return point, self.coordinates
         else:
             # return and empty coordinates list
-            return 0 , []
+            return 0, []

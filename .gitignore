@@ -14,6 +14,7 @@ __pycache__/
 *.swo
 *~
 .DS_Store
+.flake8
 
 # LGPIO helper files
 .lgd-nfy0
