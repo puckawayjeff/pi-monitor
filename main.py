@@ -19,9 +19,6 @@ from hardware.display import st7789, cst816d
 LCD_WIDTH = 320
 LCD_HEIGHT = 240
 
-# Inactivity timeout (in seconds)
-INACTIVITY_TIMEOUT = 60
-
 # Initialize psutil for CPU usage calculation
 psutil.cpu_percent(interval=None)
 
@@ -116,6 +113,7 @@ class ServerMonitor:
         
         # Load layout and fonts from config file
         self.config = self._load_config()
+        self.inactivity_timeout = self.config.get('screen_timeout', 60)
         self.colors = self.config.get('colors', {})
         self.fonts = self._load_fonts(self.config.get('fonts', {}))
         self.screens_config = self.config.get('screens', [])
@@ -351,7 +349,9 @@ class ServerMonitor:
                     time.sleep(0.1)
                     continue
 
-                if time.time() - self.last_activity_time > INACTIVITY_TIMEOUT:
+                # Only check for inactivity if the timeout is enabled (not 0)
+                if self.inactivity_timeout > 0 and \
+                   time.time() - self.last_activity_time > self.inactivity_timeout:
                     self.sleep_display()
                     continue
 

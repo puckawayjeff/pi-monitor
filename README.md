@@ -124,7 +124,15 @@ The monitor should initialize and display the first screen. To stop the applicat
 
 The layout and content of the monitor are controlled by the `config.yaml` file. This allows you to easily customize what information is displayed, change fonts, and reorder items without modifying the Python source code.
 
-The configuration is split into three main sections: `colors`, `fonts`, and `screens`.
+### **Screen Timeout**
+
+The `screen_timeout` option at the top of the file controls the inactivity timer for the display.
+
+-   **Value**: An integer representing the number of seconds of inactivity before the screen turns off.
+-   **Default**: `60` seconds.
+-   **Disable**: Set the value to `0` to disable the timeout entirely, keeping the screen on indefinitely.
+
+The main configuration is split into three main sections: `colors`, `fonts`, and `screens`.
 
 ### **Colors**
 
@@ -140,6 +148,13 @@ The `colors` section defines the color palette for the UI. You can use standard 
 The `fonts` section defines the font styles used by the widgets. You can define multiple fonts and refer to them by name (e.g., `large`, `medium`) in your widget configurations.
 
 The `path` property should be the filename of a `.ttf` or `.otf` font file. All custom font files should be placed in the `assets/fonts/` directory.
+
+### **Screens**
+
+The `screens` section is a list of all the pages you can swipe through on the display. Each item in the list is a screen with its own `title` and a list of `widgets` that define its content.
+
+- `title`: The text displayed in the top title bar.
+- `widgets`: A list of dictionary objects, where each object defines a widget to be displayed on that screen. See the **Widget Types** section below for details on how to configure widgets.
 
 ### **Available Data Sources**
 

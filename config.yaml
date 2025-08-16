@@ -1,6 +1,9 @@
 # This file defines the layout and content of the monitor screens.
 # You can customize what is displayed by editing this file.
 
+# Inactivity timeout in seconds. Set to 0 to disable the screen saver.
+screen_timeout: 60
+
 colors:
   title_background: "BLACK"
   title_text: "WHITE"
