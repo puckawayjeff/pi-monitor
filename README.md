@@ -2,7 +2,7 @@
 
 A responsive, touchscreen system monitor for headless Raspberry Pi servers, designed to provide at-a-glance status information with an aesthetic inspired by Ubiquiti UniFi hardware.
 
-![A photo of the running monitor in its 1U rack enclosure](./assets/images/monitor-in-rack.jpg)
+![A photo of the running monitor in its 1U rack enclosure](./docs/images/monitor-in-rack.jpg)
 
 ## **Overview**
 
@@ -25,6 +25,7 @@ While the software is designed to be adaptable, it has been developed and tested
 ### **Current Features**
 
 *   Multi-page, swipeable interface.
+*   Customizable screen types, including standard info widgets and full-screen "hero" images.
 *   Real-time display of key system metrics:
     *   Hostname, OS Version, and Kernel Version
     *   System Uptime
@@ -44,8 +45,7 @@ While the software is designed to be adaptable, it has been developed and tested
   * Safe Reboot & Shutdown buttons.  
   * User-configurable buttons to execute custom shell scripts (e.g., `docker restart <container>`).  
 * **Customization:**  
-  * Ability to display a custom logo.  
-  * Option to set a logo as a desaturated wallpaper behind the data.  
+  * Option to set a hero image as a desaturated wallpaper behind the data.  
 * **Early Boot Display:** Investigate the possibility of initializing the display as early as possible in the boot process to show boot logs or status.  
 * **Display Sync:** A "far future" goal to allow multiple pi-monitor units in a rack to have their screens activated and navigated simultaneously.
 
@@ -122,7 +122,7 @@ The monitor should initialize and display the first screen. To stop the applicat
 
 **Taking Screenshots:** For documentation or development, you can save an image of the current screen by pressing `s` and then `Enter` in the terminal where the application is running. Screenshots are saved to a `screenshots/` directory in the project folder.
 
-![A screenshot of the default main screen](./assets/images/screenshot-main.png)
+![A screenshot of the default main screen](./docs/images/screenshot-main.png)
 
 ## **Configuration (`config.yaml`)**
 

@@ -23,6 +23,9 @@ fonts:
     size: 14
 
 screens:
+  - type: "hero"
+    image_path: "placeholder.png"
+
   - title: "System Overview"
     widgets:
       # A 'line_item' displays a label and a value on the same line.
@@ -153,7 +156,7 @@ screens:
         position: [40, 140]
         data_source: "get_cpu_cores"
         data_x_offset: 140
-      - type: "line_item_with_sub"
+      - type: "line_item"
         label: "CPU Freq:"
         position: [40, 170]
         data_source: "get_cpu_frequency"
@@ -169,15 +172,5 @@ screens:
         data_source: "get_cpu_max_frequency"
         data_x_offset: 140
 
-
-
-      - type: "line_item_with_sub"
-        position: [40, 60]
-        label: "Disk Usage:"
-        data_source: "get_disk_space"
-        font: "medium"
-        color: "#c29b4a"
-        sub_font: "small"
-        sub_color: "GRAY"
-        data_x_offset: 180
-        sub_y_offset: 20
+  - type: "hero"
+    image_path: "test.png"

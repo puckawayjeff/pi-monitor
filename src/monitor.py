@@ -125,21 +125,40 @@ class ServerMonitor:
                 return
 
             self.last_activity_time = time.time()
-            # "touch_x" is unused because we're only concerned with the horizontal value of the touch
-            # touch_x = coordinates[0]['x']
+            touch_x = coordinates[0]['x']
             touch_y = coordinates[0]['y']
             ui_x = touch_y
-            # "ui_y" is unused because we're only concerned with the horizontal value of the touch
-            # ui_y = constants.LCD_HEIGHT - 1 - touch_x
-            LEFT_ZONE_X_END = constants.LCD_WIDTH // 3
-            RIGHT_ZONE_X_START = constants.LCD_WIDTH - (constants.LCD_WIDTH // 3)
+            ui_y = constants.LCD_HEIGHT - 1 - touch_x
 
-            if ui_x < LEFT_ZONE_X_END:
-                self.current_screen = (self.current_screen - 1) % len(self.screens_config)
-                time.sleep(0.1)
-            elif ui_x > RIGHT_ZONE_X_START:
-                self.current_screen = (self.current_screen + 1) % len(self.screens_config)
-                time.sleep(0.1)
+            current_screen_config = self.screens_config[self.current_screen]
+
+            # --- NEW: Conditional touch logic based on screen type ---
+            if current_screen_config.get('type') == 'hero':
+                # For hero screens, use the entire left/right 40% of the screen
+                LEFT_ZONE_X_END = constants.LCD_WIDTH * 0.4
+                RIGHT_ZONE_X_START = constants.LCD_WIDTH * 0.6
+                
+                if ui_x < LEFT_ZONE_X_END:
+                    self.current_screen = (self.current_screen - 1) % len(self.screens_config)
+                    time.sleep(0.2)
+                elif ui_x > RIGHT_ZONE_X_START:
+                    self.current_screen = (self.current_screen + 1) % len(self.screens_config)
+                    time.sleep(0.2)
+
+            elif ui_y <= constants.TITLE_BAR_HEIGHT:
+                # For standard screens, only use the title bar for navigation
+                LEFT_ZONE_X_END = constants.LCD_WIDTH // 3
+                RIGHT_ZONE_X_START = constants.LCD_WIDTH - (constants.LCD_WIDTH // 3)
+
+                if ui_x < LEFT_ZONE_X_END:
+                    self.current_screen = (self.current_screen - 1) % len(self.screens_config)
+                    time.sleep(0.2)
+                elif ui_x > RIGHT_ZONE_X_START:
+                    self.current_screen = (self.current_screen + 1) % len(self.screens_config)
+                    time.sleep(0.2)
+            else:
+                # This is where future button-press detection logic will go.
+                pass
 
     def sleep_display(self):
         """Turn off the backlight to save power."""

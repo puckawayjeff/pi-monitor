@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 from PIL import Image, ImageDraw
 from src import constants
+from pathlib import Path
 
 
 class UIDrawer:
@@ -72,8 +73,49 @@ class UIDrawer:
         right_tip_x = constants.LCD_WIDTH - 10
         draw.polygon([(right_tip_x, arrow_y_center), (right_tip_x - arrow_width, arrow_y_center - arrow_half_height), (right_tip_x - arrow_width, arrow_y_center + arrow_half_height)], fill=nav_color)
 
+    def _draw_hero_screen(self, screen_config):
+        """Draws a screen that consists of a single, centered hero image."""
+        image_bg = self.colors.get('content_background', 'BLACK')
+        image = Image.new("RGB", (constants.LCD_WIDTH, constants.LCD_HEIGHT), image_bg)
+
+        image_name = screen_config.get('image_path')
+        if not image_name:
+            draw = ImageDraw.Draw(image)
+            draw.text((10, 10), "Error: image_path not set for hero screen.", font=self.fonts.get('medium'), fill="RED")
+            return image
+
+        image_path = Path(__file__).parent.parent / "assets" / "images" / image_name
+        try:
+            hero_image = Image.open(image_path)
+            # Resize image to fit screen while maintaining aspect ratio
+            hero_image.thumbnail((constants.LCD_WIDTH, constants.LCD_HEIGHT), Image.Resampling.LANCZOS)
+
+            # Calculate position to center the image
+            paste_x = (constants.LCD_WIDTH - hero_image.width) // 2
+            paste_y = (constants.LCD_HEIGHT - hero_image.height) // 2
+
+            image.paste(hero_image, (paste_x, paste_y))
+        except FileNotFoundError:
+            draw = ImageDraw.Draw(image)
+            draw.text((10, 10), f"Error: Cannot find {image_name}", font=self.fonts.get('medium'), fill="RED")
+
+        return image
+
     def draw_screen(self, current_screen_index):
         """Renders a full screen based on the loaded configuration and returns a PIL Image."""
+        if not self.screens_config:
+            image = Image.new("RGB", (constants.LCD_WIDTH, constants.LCD_HEIGHT), "BLACK")
+            draw = ImageDraw.Draw(image)
+            draw.text((10, 10), "Error: No screens in config.yaml", font=self.fonts.get('medium'), fill="RED")
+            return image
+
+        screen_config = self.screens_config[current_screen_index]
+
+        # --- NEW: Handle hero screen type ---
+        if screen_config.get('type') == 'hero':
+            return self._draw_hero_screen(screen_config)
+
+        # --- Existing logic for standard screens ---
         content_bg = self.colors.get('content_background', 'BLACK')
         title_bg = self.colors.get('title_background', 'BLACK')
         image = Image.new("RGB", (constants.LCD_WIDTH, constants.LCD_HEIGHT), content_bg)
@@ -81,11 +123,6 @@ class UIDrawer:
         draw.rectangle([(0, 0), (constants.LCD_WIDTH, constants.TITLE_BAR_HEIGHT)], fill=title_bg)
         self._draw_base_ui(draw)
 
-        if not self.screens_config:
-            draw.text((10, 10), "Error: No screens in config.yaml", font=self.fonts.get('medium'), fill="RED")
-            return image
-
-        screen_config = self.screens_config[current_screen_index]
         default_title_color = self.colors.get('title_text', 'WHITE')
         title_color = screen_config.get('color', default_title_color)
         title_y = (constants.TITLE_BAR_HEIGHT - self.fonts.get('large').size) // 2

@@ -32,10 +32,17 @@ The `path` property should be the filename of a `.ttf` or `.otf` font file locat
 
 ### `screens`
 
-This is a list of all the pages you can swipe through. Each item in the list is a screen with its own `title` and a list of `widgets`.
+This is a list of all the pages you can swipe through. Each item in the list is a screen object. There are two types of screens: **standard** and **hero**.
 
+#### Standard Screen
+A standard screen has its own `title` and a list of `widgets`.
 -   `title`: The text displayed in the top title bar.
 -   `widgets`: A list of dictionary objects, where each object defines a widget to be displayed on that screen.
+
+#### Hero Screen
+A hero screen displays a single, centered image. It does not have a title bar or navigation arrows. Navigation is handled by tapping the left 40% or right 40% of the screen.
+-   `type`: Must be set to `"hero"`.
+-   `image_path`: The filename of the image to display. The image file must be placed in the `assets/images/` directory.
 
 ---
 
@@ -67,7 +74,7 @@ Widgets use the `data_source` property to fetch live system information. For fun
 
 ## **Widget Types**
 
-The `type` property of a widget determines how it is rendered.
+Widgets are used to display information on **standard screens**. The `type` property of a widget determines how it is rendered.
 
 ### `line_item`
 

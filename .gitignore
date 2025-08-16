@@ -1,7 +1,5 @@
-# Python virtual environment
+# Python
 venv/
-
-# Python cache
 __pycache__/
 *.pyc
 *.pyo
@@ -21,3 +19,7 @@ __pycache__/
 
 # Application-generated files
 screenshots/
+
+# User-provided content
+/assets/images/*
+!/assets/images/placeholder.png
