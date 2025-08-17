@@ -64,7 +64,7 @@ Navigate to `Interface Options` -> `SPI` and select `<Yes>`.
 This method downloads the installer first, allowing you to inspect it before running it with `sudo`.
 
 ```bash
-wget https://raw.githubusercontent.com/your-username/pi-monitor-1/main/install.sh
+wget https://raw.githubusercontent.com/puckawayjeff/pi-monitor/main/install.sh
 chmod +x install.sh
 sudo ./install.sh
 ```
@@ -73,7 +73,7 @@ sudo ./install.sh
 This method downloads and runs the script in a single command.
 
 ```bash
-wget -O - https://raw.githubusercontent.com/your-username/pi-monitor-1/main/install.sh | sudo bash
+wget -O - https://raw.githubusercontent.com/puckawayjeff/pi-monitor/main/install.sh | sudo bash
 ```
 
 After installation, the monitor will start automatically. The main configuration file can be found at `/opt/pi-monitor/config.yaml`.
