@@ -22,16 +22,15 @@ echo ""
 echo "IMPORTANT: You may need to enable SPI and I2C via 'sudo raspi-config' for the display to work."
 echo ""
 # --- User Detection and Confirmation ---
-DETECTED_USER=${SUDO_USER:-pi}
-read -p "Enter the username to run the service as [$DETECTED_USER]: " SERVICE_USER
-SERVICE_USER=${SERVICE_USER:-$DETECTED_USER}
+# When running via 'sudo bash', SUDO_USER will be the non-root user. Default to 'pi' if not set.
+SERVICE_USER=${SUDO_USER:-pi}
 echo "Service will be installed for user: $SERVICE_USER"
 echo ""
 
 # --- Step 1: Install System Dependencies ---
-echo "[1/7] Installing system dependencies (curl, etc.)..."
+echo "[1/7] Installing system dependencies..."
 apt-get update
-apt-get install -y python3 python3-pip python3-venv python3-dev libgpiod2
+apt-get install -y curl python3 python3-pip python3-venv python3-dev libgpiod2
 
 # --- Step 2: Find and Download Latest Release ---
 echo "[2/7] Finding latest release from $GITHUB_REPO..."
@@ -64,17 +63,15 @@ echo "[4/7] Extracting project files..."
 # removes the top-level folder from the archive, placing files directly in $INSTALL_DIR.
 tar -xzf "$TEMP_TAR_FILE" -C "$INSTALL_DIR" --strip-components=1
 rm "$TEMP_TAR_FILE"
-chown -R $SERVICE_USER:$SERVICE_USER "$INSTALL_DIR"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 
 # --- Step 5: Set up Python Virtual Environment ---
 echo "[5/7] Creating Python virtual environment..."
-sudo -u $SERVICE_USER python3 -m venv "$PYTHON_VENV_DIR"
+sudo -u "$SERVICE_USER" python3 -m venv "$PYTHON_VENV_DIR"
 
 echo "[6/7] Installing Python dependencies..."
-# shellcheck source=/dev/null
-source "$PYTHON_VENV_DIR/bin/activate"
-pip install -r "$INSTALL_DIR/requirements.txt"
-deactivate
+# Directly use the pip from the virtual environment
+"$PYTHON_VENV_DIR/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 
 # --- Step 6: Create and Configure systemd Service ---
 echo "[7/7] Creating and enabling systemd service..."
