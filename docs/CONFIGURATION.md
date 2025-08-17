@@ -61,8 +61,10 @@ Widgets use the `data_source` property to fetch live system information. For fun
 | `get_cpu_cores`           | None               | Number of logical CPU cores.                                            | `4`                             |
 | `get_cpu_frequency`       | None               | Current CPU frequency.                                                  | `"1.80 GHz"`                    |
 | `get_cpu_max_frequency`   | None               | Maximum configured CPU frequency.                                       | `"2.40 GHz"`                    |
-| `get_ram_info`            | None               | **Tuple:** usage percentage and a `used/total` summary.                 | `("25.4%", "1001/3944MB")`       |
-| `get_disk_space`          | None               | **Tuple:** usage percentage and a `used/total` summary for root.        | `("68.2%", "19.8G/29.1G")`       |
+| `get_ram_usage_percent`   | None               | RAM usage as a percentage.                                              | `"25.4%"`                       |
+| `get_ram_usage_summary`   | None               | RAM usage as a `used/total` summary.                                    | `"1001/3944MB"`                 |
+| `get_disk_usage_percent`  | `path` (optional)  | Disk usage percentage for a given path (defaults to `/`).               | `"68.2%"`                       |
+| `get_disk_usage_summary`  | `path` (optional)  | Disk usage as a `used/total` summary for a given path.                  | `"19.8G/29.1G"`                 |
 | `get_ip_address`          | None               | Primary IPv4 address.                                                   | `"192.168.1.10"`                |
 | `get_interface_ip`        | `interface_name`   | IP address for a specific interface.                                    | `"100.101.102.103"`             |
 | `get_interface_mac`       | `interface_name`   | MAC address for a specific interface.                                   | `"B8:27:EB:XX:XX:XX"`           |
@@ -74,7 +76,7 @@ Widgets use the `data_source` property to fetch live system information. For fun
 
 ## **Widget Types**
 
-Widgets are used to display information on **standard screens**. The `type` property of a widget determines how it is rendered.
+The `type` property of a widget determines how it is rendered.
 
 ### `line_item`
 
@@ -85,17 +87,9 @@ Displays a `label` and a value on the same line.
 -   **`data_source`**: A function name (string) or a dictionary (`{name: "...", args: [...]}`) that returns a single value.
 -   **`data_x_offset`**: Horizontal distance (pixels) from the label's start to the data's start.
 -   **`font`** (optional): Font name from the `fonts` section.
--   **`color`** (optional): Text color.
-
-### `line_item_with_sub`
-
-For a `data_source` that returns two values (e.g., `get_ram_info`). It displays the second value as smaller sub-text below the first.
-
--   **`position`**, **`label`**, **`data_x_offset`**, **`font`**, **`color`**: Same as `line_item`.
--   **`data_source`**: Must be a function that returns two values.
--   **`sub_font`** (optional): Font for the sub-text.
--   **`sub_color`** (optional): Color for the sub-text.
--   **`sub_y_offset`** (optional): Vertical distance from the main data value to the sub-text.
+-   **`color`** (optional): A fallback color for both the label and the data.
+-   **`label_color`** (optional): Specific color for the label text. Overrides `color`.
+-   **`data_color`** (optional): Specific color for the data text. Overrides `color`.
 
 ### `dynamic_text`
 

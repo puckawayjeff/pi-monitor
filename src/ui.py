@@ -21,25 +21,17 @@ class UIDrawer:
     def _draw_widget_line_item(self, draw, config):
         """Draws a 'label: value' widget."""
         default_color = self.colors.get('widget_default', 'WHITE')
-        widget_color = config.get('color', default_color)
+        fallback_color = config.get('color', default_color)
+        
+        label_color = config.get('label_color', fallback_color)
+        data_color = config.get('data_color', fallback_color)
+
         value = self.get_data(config.get('data_source'))
         font = self.fonts.get(config.get('font', 'medium'))
-        draw.text(config['position'], config.get('label', ''), font=font, fill=widget_color)
+        
+        draw.text(config['position'], config.get('label', ''), font=font, fill=label_color)
         data_pos = (config['position'][0] + config.get('data_x_offset', 140), config['position'][1])
-        draw.text(data_pos, str(value), font=font, fill=widget_color)
-
-    def _draw_widget_line_item_with_sub(self, draw, config):
-        """Draws a line item where the data source returns two values (main, sub)."""
-        default_color = self.colors.get('widget_default', 'WHITE')
-        widget_color = config.get('color', default_color)
-        main_val, sub_val = self.get_data(config.get('data_source')) or ("N/A", "N/A")
-        font = self.fonts.get(config.get('font', 'medium'))
-        sub_font = self.fonts.get(config.get('sub_font', 'small'))
-        draw.text(config['position'], config.get('label', ''), font=font, fill=widget_color)
-        data_pos = (config['position'][0] + config.get('data_x_offset', 140), config['position'][1])
-        draw.text(data_pos, str(main_val), font=font, fill=widget_color)
-        sub_pos = (data_pos[0], data_pos[1] + config.get('sub_y_offset', 20))
-        draw.text(sub_pos, f"({sub_val})", font=sub_font, fill=config.get('sub_color', 'GRAY'))
+        draw.text(data_pos, str(value), font=font, fill=data_color)
 
     def _draw_widget_dynamic_text(self, draw, config):
         """Draws text using a template string."""

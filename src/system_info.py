@@ -229,28 +229,55 @@ def get_cpu_usage():
         return "N/A"
 
 
-def get_ram_info():
-    """Gets RAM usage information."""
+# --- REFACTORED RAM & DISK FUNCTIONS ---
+
+def get_ram_usage_percent():
+    """Gets RAM usage as a percentage string."""
     try:
         mem = psutil.virtual_memory()
-        usage_percent = f"{mem.percent}%"
-        usage_mb = f"{int(mem.used / (1024**2))}/{int(mem.total / (1024**2))}MB"
-        return usage_percent, usage_mb
+        return f"{mem.percent}%"
     except Exception as e:
-        print(f"Error getting RAM info: {e}")
-        return "N/A", "N/A"
+        print(f"Error getting RAM percentage: {e}")
+        return "N/A"
 
 
-def get_disk_space():
-    """Gets disk space information for the root directory."""
+def get_ram_total():
+    """Gets total system RAM as a string in MB."""
     try:
-        disk = psutil.disk_usage('/')
-        usage_percent = f"{disk.percent}%"
-        usage_gb = f"{disk.used / (1024**3):.1f}G/{disk.total / (1024**3):.1f}G"
-        return usage_percent, usage_gb
+        mem = psutil.virtual_memory()
+        return f"{int(mem.total / (1024**2))}MB"
     except Exception as e:
-        print(f"Error getting disk space: {e}")
-        return "N/A", "N/A"
+        print(f"Error getting total RAM: {e}")
+        return "N/A"
+
+def get_ram_usage_summary():
+    """Gets RAM usage as a 'used/total' string in MB."""
+    try:
+        mem = psutil.virtual_memory()
+        return f"{int(mem.used / (1024**2))}/{int(mem.total / (1024**2))}MB"
+    except Exception as e:
+        print(f"Error getting RAM summary: {e}")
+        return "N/A"
+
+
+def get_disk_usage_percent(path='/'):
+    """Gets disk usage as a percentage string for a given path."""
+    try:
+        disk = psutil.disk_usage(path)
+        return f"{disk.percent}%"
+    except Exception as e:
+        print(f"Error getting disk percentage for {path}: {e}")
+        return "N/A"
+
+
+def get_disk_usage_summary(path='/'):
+    """Gets disk usage as a 'used/total' string in GB for a given path."""
+    try:
+        disk = psutil.disk_usage(path)
+        return f"{disk.used / (1024**3):.1f}G/{disk.total / (1024**3):.1f}G"
+    except Exception as e:
+        print(f"Error getting disk summary for {path}: {e}")
+        return "N/A"
 
 
 def get_ip_address():

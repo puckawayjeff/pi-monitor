@@ -28,149 +28,168 @@ screens:
 
   - title: "System Overview"
     widgets:
-      # A 'line_item' displays a label and a value on the same line.
       - type: "line_item"
-        position: [40, 50]
+        label: "Hostname:"
+        position: [12, 50]
+        data_source: "get_hostname"
+        data_x_offset: 100
+        label_color: "#c29b4a"
+      - type: "line_item"
+        label: "Uptime:"
+        position: [12, 76]
+        data_source: "get_system_uptime"
+        data_x_offset: 100
+        label_color: "#c29b4a"
+      - type: "line_item"
+        position: [12, 102]
         label: "CPU Temp:"
         data_source: "get_cpu_temperature"
         font: "medium"
-        color: "#c29b4a"
-        data_x_offset: 140
+        label_color: "#c29b4a"
+        data_x_offset: 100
       - type: "line_item"
-        position: [40, 80]
+        position: [12, 128]
         label: "CPU Usage:"
         data_source: "get_cpu_usage"
         font: "medium"
-        color: "#c29b4a"
-        data_x_offset: 140
-      # A 'line_item_with_sub' is for data that returns two parts, like usage % and total size.
-      - type: "line_item_with_sub"
-        position: [40, 110]
-        label: "RAM Usage:"
-        data_source: "get_ram_info"
-        font: "medium"
-        color: "#c29b4a"
-        sub_font: "small"
-        sub_color: "GRAY"
-        data_x_offset: 140
-        sub_y_offset: 20
-      # A 'dynamic_text' widget displays formatted text from a data source.
+        data_x_offset: 100
+        label_color: "#c29b4a"
       - type: "dynamic_text"
-        position: [10, 210]
+        position: [172, 132]
+        template: "@ {data}"
+        data_source: "get_cpu_frequency"
+        font: "small"
+        color: "GRAY"
+      - type: "line_item"
+        position: [12, 154]
+        label: "RAM Usage:"
+        data_source: "get_ram_usage_percent"
+        font: "medium"
+        label_color: "#c29b4a"
+        data_x_offset: 100
+      - type: "static_text"
+        position: [172, 158]
+        data_source: "get_ram_usage_summary"
+        font: "small"
+        color: "GRAY"
+      - type: "line_item"
+        position: [12, 180]
+        label: "Disk Usage:"
+        data_source: "get_disk_usage_percent"
+        font: "medium"
+        label_color: "#c29b4a"
+        data_x_offset: 100
+      - type: "static_text"
+        position: [172, 184]
+        data_source: "get_disk_usage_summary"
+        font: "small"
+        color: "GRAY"
+      - type: "dynamic_text"
+        position: [6, 216]
         template: "IP: {data}"
         data_source: "get_ip_address"
         font: "medium"
         color: "#4a6d4a"
-      # A 'static_text' widget displays text from a function that doesn't need a label.
       - type: "static_text"
-        position: [230, 210]
+        position: [260, 216]
         data_source: "get_current_time"
         font: "medium"
-        color: "WHITE"
-
-  - title: "Storage & Network"
-    # color: "CYAN" # Optional: overrides the default colors.title_text
-    widgets:
-      - type: "line_item"
-        label: "Uptime:"
-        position: [10, 50]
-        data_source: "get_system_uptime"
-      - type: "line_item_with_sub"
-        position: [40, 60]
-        label: "Disk Usage:"
-        data_source: "get_disk_space"
-        font: "medium"
-        color: "#c29b4a"
-        sub_font: "small"
-        sub_color: "GRAY"
-        data_x_offset: 180
-        sub_y_offset: 20
-      - type: "static_text"
-        position: [230, 210]
-        data_source: "get_current_time"
-        font: "medium"
-        color: "WHITE"
+        color: "GRAY"
 
   - title: "Network Details"
     widgets:
       - type: "line_item"
         label: "eth0 IP:"
-        position: [40, 50]
+        position: [12, 50]
         data_source:
           name: "get_interface_ip"
           args: ["eth0"]
-        data_x_offset: 120
+        label_color: "#c29b4a"
+        data_x_offset: 100
       - type: "line_item"
         label: "eth0 MAC:"
-        position: [40, 80]
+        position: [12, 76]
         data_source:
           name: "get_interface_mac"
           args: ["eth0"]
-        data_x_offset: 120
+        label_color: "#c29b4a"
+        data_x_offset: 100
       - type: "line_item"
-        label: "Tailscale IP:"
-        position: [40, 110]
-        data_source:
-          name: "get_interface_ip"
-          args: ["tailscale0"]
-        data_x_offset: 120
-      - type: "line_item"
-        label: "Rx:"
-        position: [40, 140]
+        label: "Rx Rate:"
+        position: [12, 102]
         data_source:
           name: "get_interface_rx"
           args: ["eth0"]
-        data_x_offset: 120
+        label_color: "#c29b4a"
+        data_x_offset: 100
       - type: "line_item"
-        label: "Tx:"
-        position: [40, 170]
+        label: "Tx Rate:"
+        position: [12, 128]
         data_source:
           name: "get_interface_tx"
           args: ["eth0"]
-        data_x_offset: 120
+        label_color: "#c29b4a"
+        data_x_offset: 100
+      - type: "line_item"
+        label: "Tailscale IP:"
+        position: [12, 154]
+        data_source:
+          name: "get_interface_ip"
+          args: ["tailscale0"]
+        label_color: "#c29b4a"
+        data_x_offset: 100
+      - type: "dynamic_text"
+        position: [6, 216]
+        template: "Uptime: {data}"
+        data_source: "get_system_uptime"
+        font: "medium"
+        color: "#4a6d4a"
       - type: "static_text"
-        position: [230, 210]
+        position: [260, 216]
         data_source: "get_current_time"
         font: "medium"
-        color: "WHITE"
+        color: "GRAY"
 
-  - title: "Host Info"
+  - title: "Hardware & OS"
     widgets:
       - type: "line_item"
-        label: "Hostname:"
-        position: [40, 50]
-        data_source: "get_hostname"
-        data_x_offset: 140
-      - type: "dynamic_text"
-        position: [40, 80]
-        template: "{data}"
+        label: "OS:"
+        position: [12, 50]
         data_source: "get_os_info"
-        font: "small"
+        label_color: "#c29b4a"
+        data_x_offset: 60
       - type: "line_item"
         label: "Kernel:"
-        position: [40, 110]
+        position: [12, 76]
         data_source: "get_kernel_info"
-        data_x_offset: 140
+        label_color: "#c29b4a"
+        data_x_offset: 100
       - type: "line_item"
         label: "CPU Cores:"
-        position: [40, 140]
+        position: [12, 102]
         data_source: "get_cpu_cores"
-        data_x_offset: 140
-      - type: "line_item"
-        label: "CPU Freq:"
-        position: [40, 170]
-        data_source: "get_cpu_frequency"
-        data_x_offset: 140
-      - type: "static_text"
-        position: [230, 210]
-        data_source: "get_current_time"
-        font: "medium"
-        color: "WHITE"
+        label_color: "#c29b4a"
+        data_x_offset: 100
       - type: "line_item"
         label: "CPU Max Freq:"
-        position: [40, 210] 
+        position: [12, 128] 
         data_source: "get_cpu_max_frequency"
-        data_x_offset: 140
-
-  - type: "hero"
-    image_path: "test.png"
+        label_color: "#c29b4a"
+        data_x_offset: 100
+      - type: "line_item"
+        label: "Total RAM:"
+        position: [12, 154] 
+        data_source: "get_ram_total"
+        label_color: "#c29b4a"
+        data_x_offset: 100
+      - type: "dynamic_text"
+        position: [6, 216]
+        template: "Uptime: {data}"
+        data_source: "get_system_uptime"
+        font: "medium"
+        color: "#4a6d4a"
+      - type: "static_text"
+        position: [260, 216]
+        data_source: "get_current_time"
+        font: "medium"
+        color: "GRAY"
