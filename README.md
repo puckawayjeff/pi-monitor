@@ -53,6 +53,8 @@ While the software is designed to be adaptable, it has been developed and tested
 
 ## **Installation**
 
+The installer script downloads the latest release, sets up dependencies, and configures the application to run as a system service.
+
 ### **Prerequisites**
 Before running the installer, ensure the SPI interface is enabled on your Raspberry Pi:
 ```bash
@@ -61,7 +63,7 @@ sudo raspi-config
 Navigate to `Interface Options` -> `SPI` and select `<Yes>`.
 
 ### **Recommended Method (Safe)**
-This method downloads the installer first, allowing you to inspect it before running it with `sudo`.
+This method downloads the installer script first, allowing you to inspect it before running it with `sudo`.
 
 ```bash
 wget https://raw.githubusercontent.com/puckawayjeff/pi-monitor/main/install.sh
@@ -70,11 +72,18 @@ sudo ./install.sh
 ```
 
 ### **One-Liner Method (Convenient)**
-This method downloads and runs the script in a single command.
+This method downloads and runs the installer in a single command.
 
 ```bash
 wget -O - https://raw.githubusercontent.com/puckawayjeff/pi-monitor/main/install.sh | sudo bash
 ```
+
+The installer will:
+*   Install required system packages.
+*   Download the latest release from GitHub to `/opt/pi-monitor`.
+*   Create a Python virtual environment.
+*   Install Python dependencies.
+*   Set up and start a `systemd` service to run the monitor on boot.
 
 After installation, the monitor will start automatically. The main configuration file can be found at `/opt/pi-monitor/config.yaml`.
 
@@ -104,6 +113,27 @@ If you prefer to manage the environment yourself for development purposes:
 The layout, content, colors, and fonts of the monitor are controlled by the `config.yaml` file. This allows you to easily customize what information is displayed without modifying the Python source code.
 
 For a complete guide on all configuration options, widget types, and the full list of available data source functions, please see the detailed **[Configuration Guide](./docs/CONFIGURATION.md)**.
+
+## **Developer Tools**
+
+### **Automatic Screenshot Generation**
+
+The project includes a helpful script, `generate_screenshots.py`, for developers working on custom layouts. This tool automatically generates a full set of screenshots for every screen defined in your `config.yaml`.
+
+It watches for changes to `config.yaml` and regenerates the images whenever the file is saved. 
+
+**Usage:**
+
+1.  Install the `watchdog` library (it is not included in `requirements.txt` as it's a dev-only tool):
+    ```bash
+    pip install watchdog
+    ```
+2.  Run the script from the project's root directory:
+    ```bash
+    python generate_screenshots.py
+    ```
+
+Screenshots will be saved in the `screenshots` directory.
 
 ## **Contributing**
 
