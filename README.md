@@ -2,13 +2,13 @@
 
 A responsive, touchscreen system monitor for headless Raspberry Pi servers, designed to provide at-a-glance status information with an aesthetic inspired by Ubiquiti UniFi hardware.
 
-![A photo of the running monitor in its 1U rack enclosure](./docs/images/monitor-in-rack.jpg)
+![A photo of the running monitor in its 1U rack enclosure](https://www.puckaway.org/pi-monitor/monitor-in-rack.jpg)
 
 ## **Overview**
 
 This project provides a clean, simple, and extensible monitoring interface for a Raspberry Pi. The inspiration comes from the small touchscreens found on certain UniFi gateways and switches, which offer convenient access to core system metrics.
 
-![A screenshot of a Pi-Monitor screen populated with widgets](./docs/images/screenshot-main.png)
+![A screenshot of a Pi-Monitor screen populated with widgets](https://www.puckaway.org/pi-monitor/screenshot-main.png)
 
 The goal is to create a polished hardware and software experience for headless servers. Housed in a custom 1U rack-mountable enclosure and powered over Ethernet, a Pi running this software becomes a self-contained, single-cable appliance with its own status and control display.
 
